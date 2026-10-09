@@ -1,5 +1,19 @@
 # Notepad4 and matepath
 
+#1\src\Notepad4.rc  
+只是注释了里面的用不到的菜单
+修改了Notepad4.rc显示的菜单上的某些菜单隐藏起来了，代码没有删除了.
+
+#2\src\Notepad4.cpp 第70行左右。
+还有修改工具栏的排列显示了，使工具栏更适合我自已的使用了。
+//#define DefaultToolbarButtons	L"22 3 0 1 27 2 0 4 18 19 0 5 6 0 7 8 9 20 0 10 11 0 12 0 24 0 13 14 0 15 16 0 17"
+#define DefaultToolbarButtons	L"1 2 0 4 18 0 5 6 0 7 8 9 20 0 10 11 0 12 0 24 0 13 14 0"
+
+#3\src\EditLexers\stlCPP.cpp
+cpp 的注释字体的颜色因为偏灰色，不习惯，于是修改为绿色了。
+//{ MULTI_STYLE(SCE_C_COMMENT, SCE_C_COMMENTLINE, 0, 0), NP2StyleX_Comment, L"fore:#608060" }, 
+ { MULTI_STYLE(SCE_C_COMMENT, SCE_C_COMMENTLINE, 0, 0), NP2StyleX_Comment, L"fore:#008000" },
+
 Notepad4 (Notepad2⨯2, Notepad2++) is a light-weight Scintilla based text editor for Windows with syntax highlighting, code folding, auto-completion and API list for many programming languages and documents, it's based on (rewritten in modern C++) Florian's [Notepad2](https://www.flos-freeware.ch/notepad2.html) and XhmikosR's [Notepad2-mod](https://xhmikosr.github.io/notepad2-mod/). matepath is a file browser plugin and based on (rewritten in modern C++) Florian's [metapath](https://www.flos-freeware.ch/archive.html).
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](License.txt) [![Latest release](https://img.shields.io/github/release/zufuliu/notepad4.svg)](https://github.com/zufuliu/notepad4/releases) [![Downloads](https://img.shields.io/github/downloads/zufuliu/notepad4/total.svg)](https://github.com/zufuliu/notepad4/releases)
