@@ -14,8 +14,11 @@ cpp 的注释字体的颜色因为偏灰色，不习惯，于是修改为绿色�
 //{ MULTI_STYLE(SCE_C_COMMENT, SCE_C_COMMENTLINE, 0, 0), NP2StyleX_Comment, L"fore:#608060" },   
  { MULTI_STYLE(SCE_C_COMMENT, SCE_C_COMMENTLINE, 0, 0), NP2StyleX_Comment, L"fore:#008000" },   
 
- #4修改了右键菜单显示，添加了插入时间和行编辑 两项。  
+ #4修改了右键菜单显示，添加了插入时间和行编辑 两项。    
  
+![图2](./images/2.PNG)
+![图3](./images/3.PNG)
+
 
 Notepad4 (Notepad2⨯2, Notepad2++) is a light-weight Scintilla based text editor for Windows with syntax highlighting, code folding, auto-completion and API list for many programming languages and documents, it's based on (rewritten in modern C++) Florian's [Notepad2](https://www.flos-freeware.ch/notepad2.html) and XhmikosR's [Notepad2-mod](https://xhmikosr.github.io/notepad2-mod/). matepath is a file browser plugin and based on (rewritten in modern C++) Florian's [metapath](https://www.flos-freeware.ch/archive.html).
 
