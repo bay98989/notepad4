@@ -257,6 +257,8 @@ void	EditReplaceAll(EditFindReplace &efr) noexcept;
 void	EditReplaceAllInSelection(EditFindReplace &efr, EditReplaceAllFlag flag = EditReplaceAllFlag_None) noexcept;
 bool	EditLineNumDlg(HWND hwnd) noexcept;
 void	EditModifyLinesDlg(HWND hwnd) noexcept;
+void	EditColumnEditDlg(HWND hwnd) noexcept;
+void	EditMoveRectBlock(HWND hwnd, bool bRight) noexcept;
 void	EditEncloseSelectionDlg(HWND hwnd) noexcept;
 void	EditInsertTagDlg(HWND hwnd) noexcept;
 void	EditInsertDateTime(bool bShort) noexcept;
@@ -733,3 +735,6 @@ enum LineSelectionMode {
 	LineSelectionMode_Normal,
 	LineSelectionMode_OldVisualStudio,
 };
+
+void	EditColumnInsertBefore(HWND hwnd) noexcept;
+void	EditColumnInsertAfter(HWND hwnd) noexcept;
