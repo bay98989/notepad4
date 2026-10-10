@@ -6063,6 +6063,293 @@ bool EditLineNumDlg(HWND hwnd) noexcept {
 // EditModifyLinesDlg()
 //
 //
+//=============================================================================
+//
+// ColumnEditParams
+//
+struct ColumnEditParams {
+	int iStart;
+	int iStep;
+	int iPad;
+	bool bHex;
+	WCHAR wchPrefix[128];
+	WCHAR wchSuffix[128];
+};
+
+//=============================================================================
+//
+// EditColumnEdit() -- 在矩形列块内批量插入 递增数字/相同文本
+//   iStart<0 表示纯文本模式（只插入前后缀，不带编号）
+//
+void EditColumnEdit(int iStart, int iStep, int iPad, bool bHex,
+                    LPCWSTR pwszPrefix, LPCWSTR pwszSuffix) noexcept {
+	if (!SciCall_IsRectangularSelection())
+		return;
+	const UINT cpEdit = SciCall_GetCodePage();
+
+	const Sci_Position iSelStart = SciCall_GetSelectionStart();
+	const Sci_Position iSelEnd   = SciCall_GetSelectionEnd();
+	const Sci_Line iLineTop    = SciCall_LineFromPosition(iSelStart < iSelEnd ? iSelStart : iSelEnd);
+	const Sci_Line iLineBottom = SciCall_LineFromPosition(iSelStart > iSelEnd ? iSelStart : iSelEnd);
+
+	const Sci_Position colA = iSelStart - SciCall_PositionFromLine(iLineTop);
+	const Sci_Position colB = iSelEnd   - SciCall_PositionFromLine(iLineBottom);
+	const Sci_Position colStart = colA < colB ? colA : colB;
+	const Sci_Position colEnd   = colA > colB ? colA : colB;
+
+	BeginWaitCursor();
+	SciCall_BeginUndoAction();
+	for (Sci_Line iLine = iLineTop; iLine <= iLineBottom; iLine++) {
+		const Sci_Position iLineStart = SciCall_PositionFromLine(iLine);
+		const Sci_Position iLineEnd   = SciCall_GetLineEndPosition(iLine);
+		Sci_Position s = iLineStart + colStart;
+		Sci_Position e = iLineStart + colEnd;
+		if (s > iLineEnd) s = iLineEnd;
+		if (e > iLineEnd) e = iLineEnd;
+
+		WCHAR wchNum[64];
+		const int iValue = iStart + (int)(iLine - iLineTop) * iStep;
+		const int iWidth = iPad > 0 ? iPad : 1;
+		if (bHex) wsprintfW(wchNum, L"%0*X", iWidth, iValue);
+		else      wsprintfW(wchNum, L"%0*d", iWidth, iValue);
+
+		WCHAR wchLine[512];
+		if (iStart >= 0)
+			wsprintfW(wchLine, L"%s%s%s", pwszPrefix ? pwszPrefix : L"", wchNum, pwszSuffix ? pwszSuffix : L"");
+		else
+			wsprintfW(wchLine, L"%s%s", pwszPrefix ? pwszPrefix : L"", pwszSuffix ? pwszSuffix : L"");
+
+		char mszLine[1024];
+		const int cb = WideCharToMultiByte(cpEdit, 0, wchLine, -1, mszLine, (int)COUNTOF(mszLine), nullptr, nullptr);
+		if (cb <= 0)
+			continue;
+
+		if (e > s)
+			SciCall_DeleteRange(s, e - s);
+		SciCall_InsertText(s, mszLine);
+	}
+	SciCall_EndUndoAction();
+	EndWaitCursor();
+}
+
+//=============================================================================
+//
+// EditColumnEditDlgProc()
+//
+static INT_PTR CALLBACK EditColumnEditDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam) noexcept {
+	switch (umsg) {
+	case WM_INITDIALOG:
+		SetWindowLongPtrW(hwnd, DWLP_USER, lParam);
+		SetDlgItemTextW(hwnd, IDC_CE_START, L"1");
+		SetDlgItemTextW(hwnd, IDC_CE_STEP,  L"1");
+		SetDlgItemTextW(hwnd, IDC_CE_PAD,   L"0");
+		DarkMode_InitDialog(hwnd);
+		return TRUE;
+
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDOK: {
+			ColumnEditParams *p = reinterpret_cast<ColumnEditParams *>(GetWindowLongPtrW(hwnd, DWLP_USER));
+			WCHAR wchStart[32], wchStep[32], wchPad[32];
+			GetDlgItemTextW(hwnd, IDC_CE_START,  wchStart,  COUNTOF(wchStart));
+			GetDlgItemTextW(hwnd, IDC_CE_STEP,   wchStep,   COUNTOF(wchStep));
+			GetDlgItemTextW(hwnd, IDC_CE_PAD,    wchPad,    COUNTOF(wchPad));
+			GetDlgItemTextW(hwnd, IDC_CE_PREFIX, p->wchPrefix, COUNTOF(p->wchPrefix));
+			GetDlgItemTextW(hwnd, IDC_CE_SUFFIX, p->wchSuffix, COUNTOF(p->wchSuffix));
+			p->iStart = wchStart[0] ? _wtoi(wchStart) : -1;
+			p->iStep  = _wtoi(wchStep);
+			p->iPad   = _wtoi(wchPad);
+			p->bHex   = IsButtonChecked(hwnd, IDC_CE_HEX);
+			EndDialog(hwnd, IDOK);
+		}
+		return TRUE;
+
+		case IDCANCEL:
+			EndDialog(hwnd, IDCANCEL);
+			break;
+		}
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+//=============================================================================
+//
+// EditColumnEditDlg()
+//
+void EditColumnEditDlg(HWND hwnd) noexcept {
+	if (!SciCall_IsRectangularSelection()) {
+		MessageBoxW(hwnd, L"请先用 Alt+鼠标 框选矩形列块，再执行列编辑。", L"列编辑", MB_ICONINFORMATION);
+		return;
+	}
+	ColumnEditParams params;
+	params.iStart = 1;
+	params.iStep  = 1;
+	params.iPad   = 0;
+	params.bHex   = false;
+	params.wchPrefix[0] = L'\0';
+	params.wchSuffix[0] = L'\0';
+	if (ThemedDialogBoxParam(g_hInstance, MAKEINTRESOURCE(IDD_COLUMNEDIT), hwnd, EditColumnEditDlgProc,
+	                          reinterpret_cast<LPARAM>(&params)) == IDOK) {
+		EditColumnEdit(params.iStart, params.iStep, params.iPad, params.bHex, params.wchPrefix, params.wchSuffix);
+	}
+}
+
+//=============================================================================
+//
+// EditMoveRectBlock() -- 矩形块整体左移/右移一格
+//   bRight = true  右移：在矩形每行左边界前插入一个空格
+//   bRight = false 左移：删除矩形每行左边界紧邻的一个字符
+//
+void EditMoveRectBlock(HWND hwnd, bool bRight) noexcept {
+	if (!SciCall_IsRectangularSelection()) {
+		MessageBoxW(hwnd, L"请先用 Alt+鼠标 框选矩形列块。", L"矩形块移动", MB_ICONINFORMATION);
+		return;
+	}
+
+	const Sci_Position iSelStart = SciCall_GetSelectionStart();
+	const Sci_Position iSelEnd   = SciCall_GetSelectionEnd();
+	const Sci_Line iLineTop    = SciCall_LineFromPosition(iSelStart < iSelEnd ? iSelStart : iSelEnd);
+	const Sci_Line iLineBottom = SciCall_LineFromPosition(iSelStart > iSelEnd ? iSelStart : iSelEnd);
+
+	const Sci_Position colA = iSelStart - SciCall_PositionFromLine(iLineTop);
+	const Sci_Position colB = iSelEnd   - SciCall_PositionFromLine(iLineBottom);
+	const Sci_Position colStart = colA < colB ? colA : colB;
+	const Sci_Position colEnd   = colA > colB ? colA : colB;
+
+	BeginWaitCursor();
+	SciCall_BeginUndoAction();
+	for (Sci_Line iLine = iLineTop; iLine <= iLineBottom; iLine++) {
+		const Sci_Position iLineStart = SciCall_PositionFromLine(iLine);
+		const Sci_Position iLineEnd   = SciCall_GetLineEndPosition(iLine);
+		Sci_Position pos = iLineStart + colStart;
+		if (pos > iLineEnd) pos = iLineEnd;
+
+		if (bRight) {
+			SciCall_InsertText(pos, " ");
+		} else {
+			const Sci_Position delPos = pos - 1;
+			if (colStart > 0 && delPos >= iLineStart && delPos < iLineEnd)
+				SciCall_DeleteRange(delPos, 1);
+		}
+	}
+	SciCall_EndUndoAction();
+	EndWaitCursor();
+
+	// 恢复矩形选区
+	const Sci_Position colStartNew = bRight ? colStart + 1 : (colStart > 0 ? colStart - 1 : colStart);
+	const Sci_Position anchorPos = SciCall_PositionFromLine(iLineTop)    + colStartNew;
+	const Sci_Position caretPos  = SciCall_PositionFromLine(iLineBottom) + colStartNew + (colEnd - colStart);
+	SciCall_SetSelectionMode(SC_SEL_RECTANGLE);
+	SciCall_SetRectangularSelectionAnchor(anchorPos);
+	SciCall_SetRectangularSelectionCaret(caretPos);
+}
+
+//=============================================================================
+//
+// EditModifyLinesDlg()
+
+//
+//
+//=============================================================================
+//
+// ColumnInsertParams / ColumnInsertDlgProc / EditColumnInsertText
+//
+struct ColumnInsertParams {
+	WCHAR szText[256];
+};
+
+static INT_PTR CALLBACK ColumnInsertDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam) noexcept {
+	switch (umsg) {
+	case WM_INITDIALOG:
+		SetWindowLongPtrW(hwnd, DWLP_USER, lParam);
+		DarkMode_InitDialog(hwnd);
+		return TRUE;
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDOK: {
+			ColumnInsertParams *p = reinterpret_cast<ColumnInsertParams *>(GetWindowLongPtrW(hwnd, DWLP_USER));
+			GetDlgItemTextW(hwnd, IDC_EDIT_COLUMN_TEXT, p->szText, COUNTOF(p->szText));
+			EndDialog(hwnd, IDOK);
+		}
+		return TRUE;
+		case IDCANCEL:
+			EndDialog(hwnd, IDCANCEL);
+			break;
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static void EditColumnInsertText(HWND hwnd, bool bBefore) noexcept {
+	if (!SciCall_IsRectangularSelection()) {
+		MessageBoxW(hwnd, L"请先用 Alt+鼠标 框选矩形列块。", L"插入文本", MB_ICONINFORMATION);
+		return;
+	}
+	ColumnInsertParams params;
+	params.szText[0] = L'\0';
+	if (ThemedDialogBoxParam(g_hInstance, MAKEINTRESOURCE(IDD_COLUMN_INSERT_TEXT), hwnd, ColumnInsertDlgProc,
+	                          reinterpret_cast<LPARAM>(&params)) != IDOK)
+		return;
+	if (params.szText[0] == L'\0')
+		return;
+
+	const UINT cpEdit = SciCall_GetCodePage();
+	char mszText[512];
+	if (WideCharToMultiByte(cpEdit, 0, params.szText, -1, mszText, (int)COUNTOF(mszText), nullptr, nullptr) <= 0)
+		return;
+	const int cbText = (int)strlen(mszText);
+
+	const Sci_Position iSelStart = SciCall_GetSelectionStart();
+	const Sci_Position iSelEnd   = SciCall_GetSelectionEnd();
+	const Sci_Line iLineTop    = SciCall_LineFromPosition(iSelStart < iSelEnd ? iSelStart : iSelEnd);
+	const Sci_Line iLineBottom = SciCall_LineFromPosition(iSelStart > iSelEnd ? iSelStart : iSelEnd);
+	const Sci_Position colA = iSelStart - SciCall_PositionFromLine(iLineTop);
+	const Sci_Position colB = iSelEnd   - SciCall_PositionFromLine(iLineBottom);
+	const Sci_Position colStart = colA < colB ? colA : colB;
+	const Sci_Position colEnd   = colA > colB ? colA : colB;
+
+	BeginWaitCursor();
+	SciCall_BeginUndoAction();
+	for (Sci_Line iLine = iLineTop; iLine <= iLineBottom; iLine++) {
+		const Sci_Position iLineStart = SciCall_PositionFromLine(iLine);
+		const Sci_Position iLineEnd   = SciCall_GetLineEndPosition(iLine);
+		Sci_Position pos = iLineStart + (bBefore ? colStart : colEnd);
+		if (pos > iLineEnd) pos = iLineEnd;
+		SciCall_InsertText(pos, mszText);
+	}
+	SciCall_EndUndoAction();
+	EndWaitCursor();
+
+	// 列前插入：整块右移 cbText 字节；列后插入：选区不变
+	const Sci_Position offset = bBefore ? cbText : 0;
+	const Sci_Position anchorPos = SciCall_PositionFromLine(iLineTop)    + colStart + offset;
+	const Sci_Position caretPos  = SciCall_PositionFromLine(iLineBottom) + colEnd   + offset;
+	SciCall_SetSelectionMode(SC_SEL_RECTANGLE);
+	SciCall_SetRectangularSelectionAnchor(anchorPos);
+	SciCall_SetRectangularSelectionCaret(caretPos);
+}
+
+//=============================================================================
+//
+// EditColumnInsertBefore / EditColumnInsertAfter
+//
+void EditColumnInsertBefore(HWND hwnd) noexcept {
+	EditColumnInsertText(hwnd, true);
+}
+
+void EditColumnInsertAfter(HWND hwnd) noexcept {
+	EditColumnInsertText(hwnd, false);
+}
+
+//=============================================================================
+//
+// EditModifyLinesDlg()
+
+//
+//
 static INT_PTR CALLBACK EditModifyLinesDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam) noexcept {
 	static const DWORD controlDefinition[] = {
 		DeferCtlMove(IDC_RESIZEGRIP2),
