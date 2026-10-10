@@ -275,6 +275,7 @@ BEGIN
 			MENUITEM "段落切分(&W)...",				IDM_EDIT_COLUMNWRAP
 			MENUITEM "段落合并(&P)\tCtrl+Shift+J",	IDM_EDIT_JOINLINESEX
 		END
+            MENUITEM SEPARATOR
 		POPUP "转换(&V)"
 		BEGIN
             MENUITEM SEPARATOR
