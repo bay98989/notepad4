@@ -20,4 +20,5 @@
 ![图2](images/2.png)
 ![图3](images/3.png)
 
-
+![图片2](./images/2.png)
+![图片3](./images/3.png)
