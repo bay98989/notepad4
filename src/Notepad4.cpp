@@ -15,7 +15,6 @@
 *                                                  florian.balmer@gmail.com
 *                                              https://www.flos-freeware.ch
 *
-*
 ******************************************************************************/
 
 #include <windows.h>
@@ -3287,6 +3286,26 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		EditModifyLinesDlg(hwnd);
 		break;
 
+	case IDM_EDIT_COLUMNEDIT:
+		EditColumnEditDlg(hwnd);
+		break;
+
+	case IDM_EDIT_MOVE_BLOCK_LEFT:
+		EditMoveRectBlock(hwnd, false);
+		break;
+
+	case IDM_EDIT_MOVE_BLOCK_RIGHT:
+		EditMoveRectBlock(hwnd, true);
+		break;
+
+	case IDM_EDIT_COLUMN_INSERT_BEFORE:
+		EditColumnInsertBefore(hwnd);
+		break;
+
+	case IDM_EDIT_COLUMN_INSERT_AFTER:
+		EditColumnInsertAfter(hwnd);
+		break;
+
 	case IDM_EDIT_ALIGN:
 		if (EditAlignDlg(hwnd, &iAlignMode)) {
 			BeginWaitCursor();
@@ -4607,7 +4626,7 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		break;
 
 	case IDM_SET_SYSTEM_INTEGRATION:
-		SystemIntegrationDlg(hwnd);
+		SystemIntegrationDlg(hwnd); //这是系统集成 的界面，用于代替记事本的
 		break;
 
 	default: {
@@ -8232,3 +8251,6 @@ void AutoSave_DoWork(FileSaveFlag saveFlag) noexcept {
 		DeleteFile(tchPath);
 	}
 }
+
+
+
