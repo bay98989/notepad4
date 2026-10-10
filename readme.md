@@ -15,7 +15,11 @@ cpp 的注释字体的颜色因为偏灰色，不习惯，于是修改为绿色�
 //{ MULTI_STYLE(SCE_C_COMMENT, SCE_C_COMMENTLINE, 0, 0), NP2StyleX_Comment, L"fore:#608060" },   
  { MULTI_STYLE(SCE_C_COMMENT, SCE_C_COMMENTLINE, 0, 0), NP2StyleX_Comment, L"fore:#008000" },   
 
- #4  修改了右键菜单显示，添加了插入时间和行编辑 两项。    
+ #4  修改了右键菜单显示，添加了插入时间和行编辑 两项。  
+ 
+ #5 在右键上添加了像EDITPLUS一样的块操作，也是列操作了。按住ALT后可以框住想框的内容，然后对这个列块进行左移和右移，
+     同时也可以对整个列块前面或者后面进行插入内容。当然这代码是AI写的了。  
+	 
  
 ![图2](./images/2.PNG)
 ![图3](./images/3.PNG)
