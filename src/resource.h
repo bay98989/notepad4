@@ -1056,6 +1056,26 @@
 #define IDS_ENCODINGGROUP_EBCDIC		61217
 // Lexer and Style 63000
 
+// ==================== Column Edit (列编辑) ====================
+#define IDM_EDIT_COLUMNEDIT				40900
+#define IDD_COLUMNEDIT					127
+#define IDC_CE_START					5000
+#define IDC_CE_STEP						5001
+#define IDC_CE_PREFIX					5002
+#define IDC_CE_SUFFIX					5003
+#define IDC_CE_PAD						5004
+#define IDC_CE_HEX						5005
+
+// ==================== Rect Block Move (矩形块左移/右移) ====================
+#define IDM_EDIT_MOVE_BLOCK_LEFT		40901
+#define IDM_EDIT_MOVE_BLOCK_RIGHT		40902
+
+// ==================== Column Insert Before/After (列前/列后插入文本) ====================
+#define IDM_EDIT_COLUMN_INSERT_BEFORE	40903
+#define IDM_EDIT_COLUMN_INSERT_AFTER	40904
+#define IDD_COLUMN_INSERT_TEXT			128
+#define IDC_EDIT_COLUMN_TEXT			5006
+
 // Next default values for new objects
 //
 #ifdef APSTUDIO_INVOKED
