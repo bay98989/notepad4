@@ -1678,23 +1678,41 @@ static INT_PTR CALLBACK SelectEncodingDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 		GetString(pdd->uidLabel, wch, COUNTOF(wch));
 		SetDlgItemText(hwnd, IDC_ENCODING_LABEL, wch);
 
-		// TODO: following code is buggy when icon size for shfi.hIcon is larger than bmp.bmHeight,
-		// we need to determine icon size first, then resize the encoding mask bitmap accordingly.
-
 		const int resource = GetBitmapResourceIdForCurrentDPI(IDB_ENCODING16);
 		HBITMAP hbmp = static_cast<HBITMAP>(LoadImage(g_exeInstance, MAKEINTRESOURCE(resource), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION));
 		hbmp = ResizeImageForCurrentDPI(hbmp);
 		BITMAP bmp;
 		GetObject(hbmp, sizeof(BITMAP), &bmp);
-		HIMAGELIST himl = ImageList_Create(bmp.bmHeight, bmp.bmHeight, ILC_COLOR32 | ILC_MASK, 0, 0);
-		ImageList_AddMasked(himl, hbmp, CLR_DEFAULT);
-		DeleteObject(hbmp);
 
 		// folder icon
 		const DWORD iconFlags = GetCurrentIconHandleFlags();
 		SHFILEINFO shfi;
 		SHGetFileInfo(L"Icon", FILE_ATTRIBUTE_DIRECTORY, &shfi, sizeof(SHFILEINFO), iconFlags);
-		ImageList_AddIcon(himl, shfi.hIcon);
+		int iconSize = max(bmp.bmHeight, bmp.bmWidth);
+		if (shfi.hIcon != nullptr) {
+			ICONINFO iconInfo{};
+			if (GetIconInfo(shfi.hIcon, &iconInfo)) {
+				BITMAP iconBmp{};
+				const HBITMAP hbmIcon = iconInfo.hbmColor ? iconInfo.hbmColor : iconInfo.hbmMask;
+				if (hbmIcon != nullptr && GetObject(hbmIcon, sizeof(BITMAP), &iconBmp)) {
+					const int iconDimension = max(int(iconBmp.bmWidth), int(iconBmp.bmHeight));
+					iconSize = max(iconSize, iconDimension);
+				}
+				if (iconInfo.hbmColor != nullptr) {
+					DeleteObject(iconInfo.hbmColor);
+				}
+				if (iconInfo.hbmMask != nullptr) {
+					DeleteObject(iconInfo.hbmMask);
+				}
+			}
+		}
+		HIMAGELIST himl = ImageList_Create(iconSize, iconSize, ILC_COLOR32 | ILC_MASK, 0, 0);
+		ImageList_AddMasked(himl, hbmp, CLR_DEFAULT);
+		DeleteObject(hbmp);
+		if (shfi.hIcon != nullptr) {
+			ImageList_AddIcon(himl, shfi.hIcon);
+			DestroyIcon(shfi.hIcon);
+		}
 
 		HWND hwndTV = GetDlgItem(hwnd, IDC_ENCODINGLIST);
 		DarkMode_InitTreeView(hwndTV);
