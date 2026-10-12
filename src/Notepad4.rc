@@ -222,11 +222,11 @@ BEGIN
 		BEGIN
 //			MENUITEM "重复(&D)\tAlt+D",				IDM_EDIT_SELECTIONDUPLICATE
 //			MENUITEM SEPARATOR
-//			MENUITEM "切换行注释(&O)\tCtrl+/",		IDM_EDIT_LINECOMMENT
-//			MENUITEM "切换块注释(&C)\tCtrl+Q",			IDM_EDIT_STREAMCOMMENT
-//			MENUITEM "增加缩进(&I)\tTab",			IDM_EDIT_INDENT
-//			MENUITEM "减少缩进(&U)\tShift+Tab",		IDM_EDIT_UNINDENT
-//			MENUITEM SEPARATOR
+			MENUITEM "添加/取消行注释(&O)\tCtrl+/",		IDM_EDIT_LINECOMMENT
+			MENUITEM "添加/取消块注释(&C)\tCtrl+Q",			IDM_EDIT_STREAMCOMMENT
+			MENUITEM "增加缩进(&I)\tTab",			IDM_EDIT_INDENT
+			MENUITEM "减少缩进(&U)\tShift+Tab",		IDM_EDIT_UNINDENT
+			MENUITEM SEPARATOR
 //			MENUITEM "移除行尾空白(&T)\tAlt+T",		IDM_EDIT_TRIMLINES
 //			MENUITEM "移除首个字符(&F)\tAlt+Z",		IDM_EDIT_STRIP1STCHAR
 //			MENUITEM "移除末尾字符(&L)\tAlt+L",		IDM_EDIT_STRIPLASTCHAR
@@ -240,10 +240,10 @@ BEGIN
 //			MENUITEM "压缩空白(&W)\tAlt+W",			IDM_EDIT_COMPRESSWS
 //			MENUITEM SEPARATOR
 //			MENUITEM "列编辑(&C)...\t",	IDM_EDIT_COLUMNEDIT
+			MENUITEM "列块前面插入文本(&F)...",			IDM_EDIT_COLUMN_INSERT_BEFORE
+			MENUITEM "列块后面插入文本(&A)...",			IDM_EDIT_COLUMN_INSERT_AFTER
 			MENUITEM "列块左移(&L)",				IDM_EDIT_MOVE_BLOCK_LEFT
 			MENUITEM "列块右移(&R)",				IDM_EDIT_MOVE_BLOCK_RIGHT
-			MENUITEM "在列块前面插入文本(&F)...",			IDM_EDIT_COLUMN_INSERT_BEFORE
-			MENUITEM "在列块后面插入文本(&A)...",			IDM_EDIT_COLUMN_INSERT_AFTER
 //			MENUITEM "压缩空白(&W)\tAlt+W",			IDM_EDIT_COMPRESSWS
 		END
 //		POPUP "包围选中文本(&E)"
@@ -275,10 +275,9 @@ BEGIN
 			MENUITEM "段落切分(&W)...",				IDM_EDIT_COLUMNWRAP
 			MENUITEM "段落合并(&P)\tCtrl+Shift+J",	IDM_EDIT_JOINLINESEX
 		END
-            MENUITEM SEPARATOR
 		POPUP "转换(&V)"
 		BEGIN
-            MENUITEM SEPARATOR
+//            MENUITEM SEPARATOR
 			MENUITEM "大写(&U)\tCtrl+Shift+U",		IDM_EDIT_CONVERTUPPERCASE
 			MENUITEM "小写(&L)\tCtrl+U",			IDM_EDIT_CONVERTLOWERCASE
 			MENUITEM "反转大小写(&V)\tCtrl+Alt+U",	IDM_EDIT_INVERTCASE
@@ -673,6 +672,7 @@ BEGIN
 		MENUITEM "单文件实例模式(&F)",				IDM_VIEW_SINGLEFILEINSTANCE
 		MENUITEM "文件变更通知(&C)...\tAlt+F5",		IDM_VIEW_CHANGENOTIFY
 		MENUITEM "自动保存设置(&U)...",			IDM_SET_FILE_AUTOSAVE
+		MENUITEM "退出时保存设置(&O)",				IDM_VIEW_SAVESETTINGS
 //		POPUP "Esc 键特别功能(&K)"
 //		BEGIN
 //			MENUITEM "无(&N)",						IDM_VIEW_NOESCFUNC
@@ -720,7 +720,6 @@ BEGIN
 			MENUITEM "打开 Notepad4.ini(&O)\tCtrl+F7",	CMD_OPENINIFILE
 		END
 /////////////////////////////////////////////////////////////////////////////BY SEA
-		MENUITEM "退出时保存设置(&O)",				IDM_VIEW_SAVESETTINGS
 //		MENUITEM "立即保存设置(&V)\tF7",			IDM_VIEW_SAVESETTINGSNOW
 	END
 	POPUP "工具(&T)"
@@ -834,10 +833,15 @@ BEGIN
 		MENUITEM SEPARATOR
 		POPUP "列编辑(&C)..."
 		BEGIN
+			MENUITEM "添加/取消行注释(&O)\tCtrl+/",		IDM_EDIT_LINECOMMENT
+			MENUITEM "添加/取消列块注释(&C)\tCtrl+Q",			IDM_EDIT_STREAMCOMMENT
+			MENUITEM "增加缩进(&I)\tTab",			IDM_EDIT_INDENT
+			MENUITEM "减少缩进(&U)\tShift+Tab",		IDM_EDIT_UNINDENT
+			MENUITEM SEPARATOR
+			MENUITEM "列块前面插入文本(&F)...",			IDM_EDIT_COLUMN_INSERT_BEFORE
+			MENUITEM "列块后面插入文本(&A)...",			IDM_EDIT_COLUMN_INSERT_AFTER
             MENUITEM "列块左移(&L)",				IDM_EDIT_MOVE_BLOCK_LEFT
 			MENUITEM "列块右移(&R)",				IDM_EDIT_MOVE_BLOCK_RIGHT
-			MENUITEM "在列块前面插入文本(&F)...",			IDM_EDIT_COLUMN_INSERT_BEFORE
-			MENUITEM "在列块后面插入文本(&A)...",			IDM_EDIT_COLUMN_INSERT_AFTER
         END
 		POPUP "行编辑(&L)"
 		BEGIN
