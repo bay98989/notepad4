@@ -56,6 +56,12 @@ enum StyleDefinitionMask {
 	StyleDefinitionMask_Charset = 1 << 5,
 };
 
+enum FunctionLexerStyleFlag : uint8_t {
+	FunctionLexerStyle_Function = 1 << 0,
+	FunctionLexerStyle_Definition = 1 << 1,
+	FunctionLexerStyle_Ignore = 1 << 2,
+};
+
 struct StyleDefinition {
 	UINT mask;
 	int fontSize;
@@ -108,6 +114,9 @@ void	Style_SetLexerFromName(LPCWSTR lpszFile, LPCWSTR lpszName) noexcept;
 bool	Style_CanOpenFile(LPCWSTR lpszFile) noexcept;
 void	Style_SetLexerFromID(int rid) noexcept;
 int		Style_GetMatchLexerIndex(int rid) noexcept;
+uint8_t	Style_GetFunctionStyleFlags(LPCEDITLEXER pLex, uint8_t styles[256]) noexcept;
+size_t	Style_GetFunctionLexerCount() noexcept;
+LPCEDITLEXER Style_GetFunctionLexer(size_t index) noexcept;
 
 int		Style_GetDocTypeLanguage() noexcept;
 LPCWSTR Style_GetCurrentLexerName(LPWSTR lpszName, int cchName) noexcept;

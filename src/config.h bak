@@ -1,0 +1,33 @@
+// This file is part of Notepad4.
+// See License.txt for details about distribution and modification.
+#pragma once
+
+//! 启用自定义工具栏标签
+// 开启后，用户可以在 Notepad4.ini 的 [Toolbar Labels] 配置段内修改工具栏按钮的悬浮提示文字
+//#define NP2_ENABLE_CUSTOMIZE_TOOLBAR_LABELS		0
+#define NP2_ENABLE_CUSTOMIZE_TOOLBAR_LABELS		0
+//! 启用高DPI图像资源编译
+// 如果关闭，则仅打包100%缩放比例的图像资源
+//#define NP2_ENABLE_HIDPI_IMAGE_RESOURCE			1
+#define NP2_ENABLE_HIDPI_IMAGE_RESOURCE			1
+//! 启用 .LOG 功能
+// 开启后，当 Notepad4 打开以 .LOG 开头的文件时，
+// 会自动在文件末尾追加当前时间。
+// 这是 Windows 原版记事本里的一个隐藏功能。
+//#define NP2_ENABLE_DOT_LOG_FEATURE				0
+#define NP2_ENABLE_DOT_LOG_FEATURE				0
+//! 启用附属资源DLL实现程序本地化（多语言）
+//#define NP2_ENABLE_APP_LOCALIZATION_DLL			0 
+#define NP2_ENABLE_APP_LOCALIZATION_DLL			1 
+//**开启**独立语言资源 DLL：语言翻译文本放在单独dll中，无需重新编译主程序即可切换语言。
+//! 启用使用目标区域默认UI字体，测试本地化对话框布局
+//#define NP2_ENABLE_TEST_LOCALIZATION_LAYOUT		0
+#define NP2_ENABLE_TEST_LOCALIZATION_LAYOUT		0
+//! 启用语法方案/词法分析器名称本地化
+//#define NP2_ENABLE_LOCALIZE_LEXER_NAME			1
+#define NP2_ENABLE_LOCALIZE_LEXER_NAME			1
+//**开启**语法高亮词法分析器名称本地化。
+//! 启用语法方案/词法分析器样式名称本地化
+//#define NP2_ENABLE_LOCALIZE_STYLE_NAME			1
+#define NP2_ENABLE_LOCALIZE_STYLE_NAME			1
+// scintilla\include\LaTeXInput.h 文件中定义了 NP2_ENABLE_LATEX_LIKE_EMOJI_INPUT

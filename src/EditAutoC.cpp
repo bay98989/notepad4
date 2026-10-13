@@ -3493,3 +3493,4 @@ void InitAutoCompletionCache(LPCEDITLEXER pLex) noexcept {
 
 	UpdateLexerExtraKeywords();
 }
+

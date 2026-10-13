@@ -37,6 +37,7 @@
 #include "Notepad4.h"
 #include "Edit.h"
 #include "Styles.h"
+#include "EditLexers/EditStyle.h"
 #include "Dialogs.h"
 #include "resource.h"
 
@@ -3000,6 +3001,72 @@ int Style_GetMatchLexerIndex(int rid) noexcept {
 		}
 	}
 	return LEXER_INDEX_MATCH; // Text File
+}
+
+uint8_t Style_GetFunctionStyleFlags(LPCEDITLEXER pLex, uint8_t styles[256]) noexcept {
+	memset(styles, 0, 256);
+	if (pLex == nullptr) {
+		return 0;
+	}
+
+	uint8_t flags = 0;
+	for (unsigned i = 0; i < pLex->iStyleCount; i++) {
+		const EDITSTYLE &style = pLex->Styles[i];
+		uint8_t flag = 0;
+		switch (style.rid) {
+		case NP2STYLE_Function:
+		case NP2STYLE_Method:
+			flag = FunctionLexerStyle_Function;
+			break;
+		case NP2STYLE_FunctionDefinition:
+		case NP2STYLE_MethodDefinition:
+			flag = FunctionLexerStyle_Definition;
+			break;
+		case NP2STYLE_Comment:
+		case NP2STYLE_DocComment:
+		case NP2STYLE_DocCommentTag:
+		case NP2STYLE_String:
+		case NP2STYLE_VerbatimString:
+		case NP2STYLE_Regex:
+		case NP2STYLE_Preprocessor:
+		case NP2STYLE_Directive:
+			flag = FunctionLexerStyle_Ignore;
+			break;
+		default:
+			continue;
+		}
+		if (flag != FunctionLexerStyle_Ignore) {
+			flags |= flag;
+		}
+		for (unsigned shift = 0; shift < sizeof(style.iStyle) * 8; shift += 8) {
+			const unsigned char sciStyle = static_cast<unsigned char>(style.iStyle >> shift);
+			if (sciStyle != 0) {
+				styles[sciStyle] |= flag;
+			}
+		}
+	}
+	return flags;
+}
+
+size_t Style_GetFunctionLexerCount() noexcept {
+	size_t count = 0;
+	uint8_t styles[256];
+	for (UINT iLexer = LEXER_INDEX_MATCH; iLexer < ALL_LEXER_COUNT; iLexer++) {
+		if (Style_GetFunctionStyleFlags(pLexArray[iLexer], styles)) {
+			++count;
+		}
+	}
+	return count;
+}
+
+LPCEDITLEXER Style_GetFunctionLexer(size_t index) noexcept {
+	uint8_t styles[256];
+	for (UINT iLexer = LEXER_INDEX_MATCH; iLexer < ALL_LEXER_COUNT; iLexer++) {
+		if (Style_GetFunctionStyleFlags(pLexArray[iLexer], styles) && index-- == 0) {
+			return pLexArray[iLexer];
+		}
+	}
+	return nullptr;
 }
 
 void Style_ToggleUseDefaultCodeStyle() noexcept {

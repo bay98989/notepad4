@@ -18,12 +18,14 @@
 #define NP2_ENABLE_DOT_LOG_FEATURE				0
 
 //! Enable localization with satellite resource DLLs.
-#define NP2_ENABLE_APP_LOCALIZATION_DLL			1
+#define NP2_ENABLE_APP_LOCALIZATION_DLL			0 
+//**开启**独立语言资源 DLL  语言翻译放在单独 dll，不用重新编译主程序来切换语言。
 //! Enable test localization dialog layout with default UI font for target locale.
 #define NP2_ENABLE_TEST_LOCALIZATION_LAYOUT		0
 
 //! Enable localization for scheme/lexer names.
 #define NP2_ENABLE_LOCALIZE_LEXER_NAME			1
+//**开启**语法高亮词法分析器名称本地化。
 //! Enable localization for scheme/lexer style names.
 #define NP2_ENABLE_LOCALIZE_STYLE_NAME			1
 
