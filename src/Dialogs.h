@@ -37,6 +37,23 @@ void	OpenHelpLink(HWND hwnd, int cmd) noexcept;
 bool	GetDirectory(HWND hwndParent, int iTitle, LPWSTR pszFolder, LPCWSTR pszBase);
 INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam) noexcept;
 void	RunDlg(HWND hwnd, LPCWSTR lpstrDefault) noexcept;
+
+struct RunToolConfig {
+	WCHAR menuText[64];
+	WCHAR command[MAX_PATH];
+	WCHAR arguments[1024];
+	WCHAR workingDirectory[MAX_PATH];
+};
+
+bool	RunToolsConfigDlg(HWND hwnd, RunToolConfig *tools, size_t count) noexcept;
+bool	GetRunToolPreview(const RunToolConfig &tool, LPWSTR commandLine, size_t commandLineCapacity, LPWSTR directory, size_t directoryCapacity) noexcept;
+bool	RunConfiguredTool(HWND hwnd, const RunToolConfig &tool) noexcept;
+
+struct FunctionListEntry {
+	int line;
+	WCHAR name[128];
+};
+
 bool	OpenWithDlg(HWND hwnd, LPCWSTR lpstrFile);
 bool	FavoritesDlg(HWND hwnd, LPWSTR lpstrFile) noexcept;
 bool	AddToFavDlg(HWND hwnd, LPCWSTR lpszName, LPCWSTR lpszTarget);
