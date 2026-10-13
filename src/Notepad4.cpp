@@ -29,6 +29,7 @@
 #include <cstdio>
 #include <cinttypes>
 #include "SciCall.h"
+#include "EditLexer.h"
 #include "VectorISA.h"
 #include "config.h"
 #include "Helpers.h"
@@ -57,6 +58,16 @@ static HWND hwndReBar;
 static HMONITOR hCurrentMonitor = nullptr;
 HWND	hwndEdit;
 HWND	hwndMain;
+static HWND hwndFunctionListPanel;
+static HWND hwndFunctionListSplitter;
+static HWND hwndFunctionListLanguage;
+static HWND hwndFunctionListItems;
+static HWND hwndFunctionListClose;
+static HFONT hFunctionListFont;
+static int functionListPanelWidth;
+static bool draggingFunctionListSplitter;
+static int functionListPanelLexerID = -1;
+static constexpr UINT_PTR ID_FUNCTIONLISTTIMER = 0xA003;
 static HMENU hmenuMain;
 HWND	hDlgFindReplace = nullptr;
 static bool bInitDone = false;
@@ -102,7 +113,7 @@ static const TBBUTTON tbbMainWnd[] =
 	{23, 	IDT_VIEW_TOGGLEFOLDS, 	TBSTATE_ENABLED, BTNS_DROPDOWN, {0}, 0, 0},
 	{24, 	IDT_FILE_LAUNCH, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{25, 	IDT_VIEW_ALWAYSONTOP, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
-	{26, 	IDT_FILE_NEWWINDOW, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+//	{26, 	IDT_FILE_NEWWINDOW, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 };
 // NOLINTEND(readability-redundant-zero-initializer)
 
@@ -178,6 +189,8 @@ int		iPrintColor;
 int		iPrintZoom = 100;
 RECT	pageSetupMargin;
 static bool bSaveBeforeRunningTools;
+static constexpr size_t RunToolsCount = 10;
+static RunToolConfig runTools[RunToolsCount];
 bool bOpenFolderWithMatepath;
 FileWatchingMode iFileWatchingMode;
 int iFileWatchingOption;
@@ -186,6 +199,10 @@ static DWORD dwFileCheckInterval;
 static DWORD dwAutoReloadTimeout;
 unsigned int dwUrlThreshold;
 static EscFunction iEscFunction;
+
+static void LoadRunToolsSettings() noexcept;
+static bool SaveRunToolsSettings() noexcept;
+static void UpdateRunToolsMenu() noexcept;
 static bool bAlwaysOnTop;
 static bool bMinimizeToTray;
 static TransparentMode bTransparentMode;
@@ -331,6 +348,8 @@ static HMODULE hResDLL;
 LANGID uiLanguage;
 static UINT languageMenu;
 #endif
+
+static void RefreshFunctionListPanel() noexcept;
 
 //=============================================================================
 //
@@ -1134,6 +1153,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam)
 	case WM_DESTROY:
 	case WM_ENDSESSION:
 		if (!bShutdownOK) {
+			KillTimer(hwnd, ID_FUNCTIONLISTTIMER);
 			editMarkAll.Stop();
 			AutoSave_Stop(TRUE);
 			// Terminate file watching
@@ -1217,6 +1237,9 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam)
 	case WM_TIMER:
 		if (wParam == ID_AUTOSAVETIMER) {
 			AutoSave_DoWork(FileSaveFlag_Default);
+		} else if (wParam == ID_FUNCTIONLISTTIMER) {
+			KillTimer(hwnd, ID_FUNCTIONLISTTIMER);
+			RefreshFunctionListPanel();
 		}
 		break;
 
@@ -1400,6 +1423,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam)
 	break;
 
 	case WM_INITMENU:
+		UpdateRunToolsMenu();
 		MsgInitMenu(hwnd, wParam, lParam);
 		break;
 
@@ -2032,7 +2056,26 @@ void RecreateBars(HWND hwnd, HINSTANCE hInstance) noexcept {
 //
 //
 void MsgDPIChanged(HWND hwnd, WPARAM wParam, LPARAM lParam) noexcept {
+	const UINT oldDPI = g_uCurrentDPI;
 	g_uCurrentDPI = HIWORD(wParam);
+	if (functionListPanelWidth > 0 && oldDPI != 0) {
+		functionListPanelWidth = MulDiv(functionListPanelWidth, g_uCurrentDPI, oldDPI);
+	}
+	if (hwndFunctionListPanel != nullptr && hFunctionListFont != nullptr) {
+		LOGFONT lf;
+		if (GetObject(static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT)), sizeof(lf), &lf) == sizeof(lf)) {
+			const int onePoint = max(1, MulDiv(g_uCurrentDPI, 1, 72));
+			lf.lfHeight += lf.lfHeight < 0 ? -onePoint : onePoint;
+			HFONT hFont = CreateFontIndirect(&lf);
+			if (hFont != nullptr) {
+				SendMessage(hwndFunctionListItems, WM_SETFONT, AsInteger<WPARAM>(hFont), TRUE);
+				DeleteObject(hFunctionListFont);
+				hFunctionListFont = hFont;
+			} else {
+				MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+			}
+		}
+	}
 	const RECT* const rc = AsPointer<RECT *>(lParam);
 	const Sci_Line iVisTopLine = SciCall_GetFirstVisibleLine();
 	const Sci_Line iDocTopLine = SciCall_DocLineFromVisible(iVisTopLine);
@@ -2136,7 +2179,23 @@ void MsgSize(HWND hwnd, WPARAM wParam, LPARAM lParam) noexcept {
 		cy -= (rc.bottom - rc.top);
 	}
 
-	SetWindowPos(hwndEdit, nullptr, x, y, cx, cy, SWP_NOZORDER | SWP_NOACTIVATE);
+	int editWidth = cx;
+	if (hwndFunctionListPanel != nullptr && IsWindowVisible(hwndFunctionListPanel)) {
+		if (functionListPanelWidth == 0) {
+			functionListPanelWidth = MulDiv(280, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+		}
+		const int minEditWidth = MulDiv(200, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+		const int splitterWidth = MulDiv(8, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+		const int panelWidth = min(functionListPanelWidth, max(0, cx - minEditWidth - splitterWidth));
+		const int actualSplitterWidth = panelWidth > 0 ? min(splitterWidth, max(0, cx - panelWidth - minEditWidth)) : 0;
+		editWidth -= panelWidth + actualSplitterWidth;
+		if (hwndFunctionListSplitter != nullptr) {
+			ShowWindow(hwndFunctionListSplitter, actualSplitterWidth > 0 ? SW_SHOW : SW_HIDE);
+			SetWindowPos(hwndFunctionListSplitter, nullptr, editWidth, y, actualSplitterWidth, cy, SWP_NOZORDER | SWP_NOACTIVATE);
+		}
+		SetWindowPos(hwndFunctionListPanel, nullptr, editWidth + actualSplitterWidth, y, panelWidth, cy, SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+	SetWindowPos(hwndEdit, nullptr, x, y, editWidth, cy, SWP_NOZORDER | SWP_NOACTIVATE);
 
 	// resize Statusbar items
 	UpdateStatusbar();
@@ -2510,6 +2569,7 @@ void MsgInitMenu(HWND hwnd, WPARAM wParam, LPARAM lParam) noexcept {
 	DisableCmd(hmenu, IDM_EDIT_STREAMCOMMENT, (i & LexerAttr_NoBlockComment));
 
 	CheckCmd(hmenu, IDM_VIEW_SHOW_FOLDING, bShowCodeFolding);
+	CheckCmd(hmenu, IDM_VIEW_FUNCTION_LIST, hwndFunctionListPanel != nullptr && IsWindowVisible(hwndFunctionListPanel));
 	CheckCmd(hmenu, IDM_VIEW_USEDEFAULT_CODESTYLE, pLexCurrent->bUseDefaultCodeStyle);
 	i = IDM_VIEW_STYLE_THEME_DEFAULT + np2StyleTheme;
 	CheckMenuRadioItem(hmenu, IDM_VIEW_STYLE_THEME_DEFAULT, IDM_VIEW_STYLE_THEME_DARK, i, MF_BYCOMMAND);
@@ -2655,6 +2715,743 @@ static inline void HandleTabCompletion() noexcept {
 // MsgCommand() - Handles WM_COMMAND
 //
 //
+static HMENU FindMenuContainingCommand(HMENU menu, UINT command) noexcept {
+	const int count = GetMenuItemCount(menu);
+	for (int i = 0; i < count; i++) {
+		MENUITEMINFO mii{};
+		mii.cbSize = sizeof(mii);
+		mii.fMask = MIIM_ID | MIIM_SUBMENU;
+		if (GetMenuItemInfo(menu, static_cast<UINT>(i), TRUE, &mii)) {
+			if (mii.wID == command) {
+				return menu;
+			}
+			if (mii.hSubMenu) {
+				if (HMENU result = FindMenuContainingCommand(mii.hSubMenu, command)) {
+					return result;
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+static void UpdateRunToolsMenu() noexcept {
+	HMENU menu = FindMenuContainingCommand(hmenuMain, IDM_RUN_TOOLS_CONFIG);
+	if (menu == nullptr) {
+		return;
+	}
+	for (size_t i = 0; i < RunToolsCount; i++) {
+		WCHAR fallback[32];
+		wsprintf(fallback, L"Tool %u", static_cast<unsigned>(i + 1));
+		MENUITEMINFO mii{};
+		mii.cbSize = sizeof(mii);
+		mii.fMask = MIIM_STRING | MIIM_STATE;
+		mii.dwTypeData = StrNotEmpty(runTools[i].menuText) ? runTools[i].menuText : fallback;
+		mii.fState = (StrNotEmpty(runTools[i].menuText) && StrNotEmpty(runTools[i].command)) ? MFS_ENABLED : MFS_GRAYED;
+		SetMenuItemInfo(menu, IDM_RUN_TOOL_1 + static_cast<UINT>(i), FALSE, &mii);
+	}
+}
+
+static bool AppendRunToolText(LPWSTR destination, size_t capacity, size_t &length, LPCWSTR text, size_t count) noexcept {
+	if (count > capacity - length - 1) {
+		return false;
+	}
+	memcpy(destination + length, text, count * sizeof(WCHAR));
+	length += count;
+	destination[length] = L'\0';
+	return true;
+}
+
+static bool ExpandRunToolText(LPCWSTR source, LPWSTR destination, size_t capacity, LPCWSTR filePath, LPCWSTR fileName, LPCWSTR fileNameNoExt, LPCWSTR fileDir) noexcept {
+	size_t length = 0;
+	destination[0] = L'\0';
+	while (*source) {
+		if (source[0] == L'$' && source[1] == L'(') {
+			LPCWSTR end = wcschr(source + 2, L')');
+			if (end) {
+				const size_t tokenLength = static_cast<size_t>(end - source + 1);
+				LPCWSTR replacement = nullptr;
+				if (tokenLength == 11 && CompareStringOrdinal(source, static_cast<int>(tokenLength), L"$(FilePath)", 11, FALSE) == CSTR_EQUAL) {
+					replacement = filePath;
+				} else if (tokenLength == 11 && CompareStringOrdinal(source, static_cast<int>(tokenLength), L"$(FileName)", 11, FALSE) == CSTR_EQUAL) {
+					replacement = fileName;
+				} else if (tokenLength == 16 && CompareStringOrdinal(source, static_cast<int>(tokenLength), L"$(FileNameNoExt)", 16, FALSE) == CSTR_EQUAL) {
+					replacement = fileNameNoExt;
+				} else if (tokenLength == 10 && CompareStringOrdinal(source, static_cast<int>(tokenLength), L"$(FileDir)", 10, FALSE) == CSTR_EQUAL) {
+					replacement = fileDir;
+				}
+				if (replacement) {
+					const size_t replacementLength = static_cast<size_t>(lstrlen(replacement));
+					if (!AppendRunToolText(destination, capacity, length, replacement, replacementLength)) {
+						return false;
+					}
+					source = end + 1;
+					continue;
+				}
+			}
+		}
+		if (!AppendRunToolText(destination, capacity, length, source, 1)) {
+			return false;
+		}
+		source++;
+	}
+	return true;
+}
+
+struct ExpandedRunToolCommand {
+	WCHAR executable[MAX_PATH * 2];
+	WCHAR commandLine[MAX_PATH * 2 + 2048 + 4];
+	WCHAR directory[MAX_PATH];
+};
+
+static bool ExpandRunToolCommand(const RunToolConfig &tool, ExpandedRunToolCommand &expanded) noexcept {
+	WCHAR filePath[MAX_PATH];
+	lstrcpyn(filePath, szCurFile, COUNTOF(filePath));
+	WCHAR fileName[MAX_PATH];
+	lstrcpyn(fileName, PathFindFileName(filePath), COUNTOF(fileName));
+	WCHAR fileNameNoExt[MAX_PATH];
+	lstrcpyn(fileNameNoExt, fileName, COUNTOF(fileNameNoExt));
+	PathRemoveExtension(fileNameNoExt);
+	WCHAR fileDir[MAX_PATH];
+	lstrcpyn(fileDir, filePath, COUNTOF(fileDir));
+	if (StrNotEmpty(fileDir)) {
+		PathRemoveFileSpec(fileDir);
+	}
+
+	WCHAR command[MAX_PATH * 2];
+	WCHAR arguments[2048];
+	WCHAR directory[MAX_PATH];
+	if (!ExpandRunToolText(tool.command, command, COUNTOF(command), filePath, fileName, fileNameNoExt, fileDir)
+		|| !ExpandRunToolText(tool.arguments, arguments, COUNTOF(arguments), filePath, fileName, fileNameNoExt, fileDir)
+		|| !ExpandRunToolText(tool.workingDirectory, directory, COUNTOF(directory), filePath, fileName, fileNameNoExt, fileDir)) {
+		return false;
+	}
+	if (StrIsEmpty(directory)) {
+		lstrcpyn(directory, fileDir, COUNTOF(directory));
+	}
+	const size_t commandLength = static_cast<size_t>(lstrlen(command));
+	if (commandLength >= 2 && command[0] == L'"' && command[commandLength - 1] == L'"') {
+		memmove(command, command + 1, (commandLength - 2) * sizeof(WCHAR));
+		command[commandLength - 2] = L'\0';
+	}
+
+	WCHAR expandedCommand[MAX_PATH * 2];
+	WCHAR expandedArguments[2048];
+	WCHAR expandedDirectory[MAX_PATH];
+	const DWORD commandLengthExpanded = ExpandEnvironmentStrings(command, expandedCommand, COUNTOF(expandedCommand));
+	const DWORD argumentsLengthExpanded = ExpandEnvironmentStrings(arguments, expandedArguments, COUNTOF(expandedArguments));
+	const DWORD directoryLengthExpanded = ExpandEnvironmentStrings(directory, expandedDirectory, COUNTOF(expandedDirectory));
+	if (commandLengthExpanded == 0 || argumentsLengthExpanded == 0 || directoryLengthExpanded == 0) {
+		return false;
+	}
+	if (commandLengthExpanded > COUNTOF(expandedCommand)
+		|| argumentsLengthExpanded > COUNTOF(expandedArguments)
+		|| directoryLengthExpanded > COUNTOF(expandedDirectory)) {
+		return false;
+	}
+
+	lstrcpy(expanded.executable, expandedCommand);
+	lstrcpy(expanded.directory, expandedDirectory);
+	size_t commandLineLength = 0;
+	if (!AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, L"\"", 1)
+		|| !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, expandedCommand, commandLengthExpanded - 1)
+		|| !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, L"\"", 1)
+		|| (StrNotEmpty(expandedArguments)
+			&& (!AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, L" ", 1)
+				|| !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, expandedArguments, argumentsLengthExpanded - 1)))) {
+		return false;
+	}
+	return true;
+}
+
+bool GetRunToolPreview(const RunToolConfig &tool, LPWSTR commandLine, size_t commandLineCapacity, LPWSTR directory, size_t directoryCapacity) noexcept {
+	if (commandLine == nullptr || commandLineCapacity == 0 || directory == nullptr || directoryCapacity == 0) {
+		return false;
+	}
+	commandLine[0] = L'\0';
+	directory[0] = L'\0';
+	if (StrIsEmpty(tool.command)) {
+		return false;
+	}
+	ExpandedRunToolCommand expanded;
+	if (!ExpandRunToolCommand(tool, expanded)) {
+		return false;
+	}
+	const size_t commandLength = static_cast<size_t>(lstrlen(expanded.commandLine)) + 1;
+	const size_t directoryLength = static_cast<size_t>(lstrlen(expanded.directory)) + 1;
+	if (commandLength > commandLineCapacity || directoryLength > directoryCapacity) {
+		return false;
+	}
+	memcpy(commandLine, expanded.commandLine, commandLength * sizeof(WCHAR));
+	memcpy(directory, expanded.directory, directoryLength * sizeof(WCHAR));
+	return true;
+}
+
+bool RunConfiguredTool(HWND hwnd, const RunToolConfig &tool) noexcept {
+	UNREFERENCED_PARAMETER(hwnd);
+	if (StrIsEmpty(tool.command)) {
+		return false;
+	}
+	if (bSaveBeforeRunningTools && !FileSave(FileSaveFlag_Ask)) {
+		return false;
+	}
+	ExpandedRunToolCommand expanded;
+	if (!ExpandRunToolCommand(tool, expanded)) {
+		MsgBoxWarn(MB_OK, IDS_BUFFERTOOSMALL);
+		return false;
+	}
+	STARTUPINFO si{};
+	si.cb = sizeof(si);
+	PROCESS_INFORMATION pi{};
+	if (!CreateProcess(expanded.executable, expanded.commandLine, nullptr, nullptr, FALSE, 0, nullptr,
+		StrNotEmpty(expanded.directory) ? expanded.directory : nullptr, &si, &pi)) {
+		MsgBoxLastError(MB_OK, IDS_ERR_RUNTOOL, expanded.executable);
+		return false;
+	}
+	CloseHandle(pi.hThread);
+	CloseHandle(pi.hProcess);
+	return true;
+}
+
+static bool IsIgnoredCppStyle(unsigned char style) noexcept {
+	return (style >= SCE_C_COMMENT && style <= SCE_C_COMMENTDOC_TAG_XML)
+		|| style == SCE_C_PREPROCESSOR || style == SCE_C_DIRECTIVE
+		|| (style >= SCE_C_CHARACTER && style <= SCE_C_ESCAPECHAR);
+}
+
+static bool IsCppFunctionDefinition(const char *styledText, Sci_Position length, Sci_Position nameStart, Sci_Position nameEnd) noexcept {
+	const size_t textOffset = static_cast<size_t>(length) + 1;
+	const auto getChar = [styledText, textOffset](Sci_Position position) noexcept {
+		return styledText[textOffset + static_cast<size_t>(position)];
+	};
+	const auto getStyle = [styledText](Sci_Position position) noexcept {
+		return static_cast<unsigned char>(styledText[static_cast<size_t>(position)]);
+	};
+
+	for (Sci_Position position = nameStart; position > 0 && nameStart - position < 2048; ) {
+		--position;
+		if (IsIgnoredCppStyle(getStyle(position))) {
+			continue;
+		}
+		const char ch = getChar(position);
+		if (ch == ';' || ch == '{' || ch == '}') {
+			break;
+		}
+		if (getStyle(position) == SCE_C_WORD) {
+			Sci_Position start = position;
+			while (start > 0 && getStyle(start - 1) == SCE_C_WORD) {
+				--start;
+			}
+			const Sci_Position tokenLength = position - start + 1;
+			if ((tokenLength == 2 && getChar(start) == 'i' && getChar(start + 1) == 'f')
+				|| (tokenLength == 3 && getChar(start) == 'f' && getChar(start + 1) == 'o' && getChar(start + 2) == 'r')
+				|| (tokenLength == 5 && getChar(start) == 'w' && getChar(start + 1) == 'h' && getChar(start + 2) == 'i' && getChar(start + 3) == 'l' && getChar(start + 4) == 'e')
+				|| (tokenLength == 6 && getChar(start) == 's' && getChar(start + 1) == 'w' && getChar(start + 2) == 'i' && getChar(start + 3) == 't' && getChar(start + 4) == 'c' && getChar(start + 5) == 'h')
+				|| (tokenLength == 5 && getChar(start) == 'c' && getChar(start + 1) == 'a' && getChar(start + 2) == 't' && getChar(start + 3) == 'c' && getChar(start + 4) == 'h')) {
+				return false;
+			}
+			position = start;
+		}
+	}
+
+	Sci_Position position = nameEnd;
+	while (position < length && ((getChar(position) == ' ' || getChar(position) == '\t' || getChar(position) == '\r' || getChar(position) == '\n') || IsIgnoredCppStyle(getStyle(position)))) {
+		++position;
+	}
+	if (position >= length || getChar(position) != '(') {
+		return false;
+	}
+	int depth = 0;
+	Sci_Position closeParen = -1;
+	for (; position < length && position - nameEnd < 16384; position++) {
+		if (IsIgnoredCppStyle(getStyle(position))) {
+			continue;
+		}
+		const char ch = getChar(position);
+		if (ch == '(') {
+			++depth;
+		} else if (ch == ')') {
+			if (--depth == 0) {
+				closeParen = position;
+				break;
+			}
+		}
+	}
+	if (closeParen < 0) {
+		return false;
+	}
+	for (position = closeParen + 1; position < length && position - closeParen < 16384; position++) {
+		if (IsIgnoredCppStyle(getStyle(position))) {
+			continue;
+		}
+		const char ch = getChar(position);
+		if (ch == '{') {
+			return true;
+		}
+		if (ch == ';' || ch == '=' || ch == '}') {
+			return false;
+		}
+	}
+	return false;
+}
+
+static bool IsFunctionListDefinition(const char *styledText, Sci_Position length, Sci_Position nameStart, Sci_Position nameEnd, bool isDefinitionStyle, const uint8_t styleFlags[256]) noexcept {
+	if (isDefinitionStyle) {
+		return true;
+	}
+	if (pLexCurrent->rid == NP2LEX_CPP) {
+		return IsCppFunctionDefinition(styledText, length, nameStart, nameEnd);
+	}
+
+	const size_t textOffset = static_cast<size_t>(length) + 1;
+	const auto getChar = [styledText, textOffset](Sci_Position position) noexcept {
+		return styledText[textOffset + static_cast<size_t>(position)];
+	};
+	const auto getStyle = [styledText](Sci_Position position) noexcept {
+		return static_cast<unsigned char>(styledText[static_cast<size_t>(position)]);
+	};
+	const auto isIgnored = [&getStyle, styleFlags](Sci_Position position) noexcept {
+		return (styleFlags[getStyle(position)] & FunctionLexerStyle_Ignore) != 0;
+	};
+	const auto isSpace = [&getChar](Sci_Position position) noexcept {
+		const char ch = getChar(position);
+		return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
+	};
+
+	bool hasDefinitionKeyword = false;
+	for (Sci_Position position = nameStart; position > 0 && nameStart - position < 256; ) {
+		--position;
+		if (isIgnored(position)) {
+			continue;
+		}
+		const char ch = getChar(position);
+		if (ch == '\n' || ch == '\r') {
+			break;
+		}
+		if (ch == ' ' || ch == '\t') {
+			continue;
+		}
+		if (ch == ';' || ch == '{' || ch == '}') {
+			break;
+		}
+		if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '_') {
+			Sci_Position end = position + 1;
+			while (position > 0) {
+				const char previous = getChar(position - 1);
+				if (!((previous >= 'A' && previous <= 'Z') || (previous >= 'a' && previous <= 'z') || (previous >= '0' && previous <= '9') || previous == '_')) {
+					break;
+				}
+				--position;
+			}
+			const Sci_Position tokenLength = end - position;
+			const auto equalsWord = [styledText, textOffset, position, tokenLength](const char *word) noexcept {
+				const size_t wordLength = strlen(word);
+				if (tokenLength != static_cast<Sci_Position>(wordLength)) {
+					return false;
+				}
+				const char *token = styledText + textOffset + static_cast<size_t>(position);
+				for (size_t i = 0; i < wordLength; i++) {
+					char ch = token[i];
+					if (ch >= 'A' && ch <= 'Z') {
+						ch = static_cast<char>(ch + ('a' - 'A'));
+					}
+					char expected = word[i];
+					if (expected >= 'A' && expected <= 'Z') {
+						expected = static_cast<char>(expected + ('a' - 'A'));
+					}
+					if (ch != expected) {
+						return false;
+					}
+				}
+				return true;
+			};
+			if (equalsWord("if") || equalsWord("for") || equalsWord("while") || equalsWord("switch")
+				|| equalsWord("catch") || equalsWord("foreach") || equalsWord("return") || equalsWord("throw")
+				|| equalsWord("new")) {
+				return false;
+			}
+			if (equalsWord("def") || equalsWord("function") || equalsWord("func") || equalsWord("fn")
+				|| equalsWord("sub") || equalsWord("procedure") || equalsWord("proc") || equalsWord("method")
+				|| equalsWord("Function") || equalsWord("Sub") || equalsWord("Procedure")) {
+				hasDefinitionKeyword = true;
+				break;
+			}
+		}
+	}
+
+	Sci_Position position = nameEnd;
+	while (position < length && (isSpace(position) || isIgnored(position))) {
+		++position;
+	}
+	if (position >= length || getChar(position) != '(') {
+		return false;
+	}
+	int depth = 0;
+	Sci_Position closeParen = -1;
+	for (; position < length && position - nameEnd < 16384; position++) {
+		if (isIgnored(position)) {
+			continue;
+		}
+		const char ch = getChar(position);
+		if (ch == '(') {
+			++depth;
+		} else if (ch == ')' && --depth == 0) {
+			closeParen = position;
+			break;
+		}
+	}
+	if (closeParen < 0) {
+		return false;
+	}
+
+	for (position = closeParen + 1; position < length && position - closeParen < 2048; position++) {
+		if (isIgnored(position)) {
+			continue;
+		}
+		const char ch = getChar(position);
+		if (ch == '{') {
+			return true;
+		}
+		if (hasDefinitionKeyword && (ch == ':' || ch == '=')) {
+			return true;
+		}
+		if (hasDefinitionKeyword && ch == '-' && position + 1 < length && getChar(position + 1) == '>') {
+			return true;
+		}
+		if (ch == '=' && position + 1 < length && getChar(position + 1) == '>') {
+			return true;
+		}
+		if (ch == ';' || ch == '}') {
+			return false;
+		}
+		if ((ch == '\r' || ch == '\n') && hasDefinitionKeyword) {
+			return true;
+		}
+	}
+	return hasDefinitionKeyword;
+}
+
+static void LayoutFunctionListPanel(HWND hwnd) noexcept {
+	RECT rc;
+	GetClientRect(hwnd, &rc);
+	const int margin = MulDiv(7, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+	const int buttonWidth = MulDiv(24, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+	const int buttonHeight = MulDiv(22, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+	SetWindowPos(hwndFunctionListClose, nullptr, rc.right - margin - buttonWidth, margin, buttonWidth, buttonHeight, SWP_NOZORDER);
+	SetWindowPos(hwndFunctionListLanguage, nullptr, margin, margin, max<int>(0, static_cast<int>(rc.right) - 3 * margin - buttonWidth), buttonHeight, SWP_NOZORDER);
+	SetWindowPos(hwndFunctionListItems, nullptr, margin, margin + buttonHeight + margin, max<int>(0, static_cast<int>(rc.right) - 2 * margin), max<int>(0, static_cast<int>(rc.bottom) - buttonHeight - 3 * margin), SWP_NOZORDER);
+}
+
+static bool CreateFunctionListFont() noexcept {
+	LOGFONT lf;
+	if (GetObject(static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT)), sizeof(lf), &lf) != sizeof(lf)) {
+		return false;
+	}
+	const int onePoint = max(1, MulDiv(g_uCurrentDPI, 1, 72));
+	lf.lfHeight += lf.lfHeight < 0 ? -onePoint : onePoint;
+	hFunctionListFont = CreateFontIndirect(&lf);
+	if (hFunctionListFont == nullptr) {
+		return false;
+	}
+	SendMessage(hwndFunctionListItems, WM_SETFONT, AsInteger<WPARAM>(hFunctionListFont), FALSE);
+	return true;
+}
+
+static LRESULT CALLBACK FunctionListSplitterProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam, UINT_PTR subclassID, DWORD_PTR refData) {
+	UNREFERENCED_PARAMETER(subclassID);
+	UNREFERENCED_PARAMETER(refData);
+	switch (umsg) {
+	case WM_SETCURSOR:
+		SetCursor(LoadCursor(nullptr, IDC_SIZEWE));
+		return TRUE;
+	case WM_LBUTTONDOWN:
+		draggingFunctionListSplitter = true;
+		SetCapture(hwnd);
+		return 0;
+	case WM_MOUSEMOVE:
+		if (draggingFunctionListSplitter && GetCapture() == hwnd) {
+			POINT pt;
+			GetCursorPos(&pt);
+			ScreenToClient(hwndMain, &pt);
+			RECT rc;
+			GetClientRect(hwndMain, &rc);
+			const int minEditWidth = MulDiv(200, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+			const int minPanelWidth = MulDiv(160, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+			const int splitterWidth = MulDiv(8, g_uCurrentDPI, USER_DEFAULT_SCREEN_DPI);
+			functionListPanelWidth = clamp<int>(rc.right - pt.x - splitterWidth / 2, minPanelWidth,
+				max(minPanelWidth, static_cast<int>(rc.right) - minEditWidth - splitterWidth));
+			SendMessage(hwndMain, WM_SIZE, SIZE_RESTORED, MAKELPARAM(rc.right, rc.bottom));
+		}
+		return 0;
+	case WM_LBUTTONUP:
+		if (draggingFunctionListSplitter && GetCapture() == hwnd) {
+			draggingFunctionListSplitter = false;
+			ReleaseCapture();
+		}
+		return 0;
+	case WM_CAPTURECHANGED:
+		draggingFunctionListSplitter = false;
+		return 0;
+	case WM_NCDESTROY:
+		RemoveWindowSubclass(hwnd, FunctionListSplitterProc, 0);
+		break;
+	}
+	return DefSubclassProc(hwnd, umsg, wParam, lParam);
+}
+
+static LRESULT CALLBACK FunctionListPanelProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam, UINT_PTR subclassID, DWORD_PTR refData) {
+	UNREFERENCED_PARAMETER(subclassID);
+	UNREFERENCED_PARAMETER(refData);
+	switch (umsg) {
+	case WM_SIZE:
+		LayoutFunctionListPanel(hwnd);
+		break;
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDC_FUNCTIONLIST_CLOSE && HIWORD(wParam) == BN_CLICKED) {
+			ShowWindow(hwnd, SW_HIDE);
+			ShowWindow(hwndFunctionListSplitter, SW_HIDE);
+			CheckMenuItem(hmenuMain, IDM_VIEW_FUNCTION_LIST, MF_BYCOMMAND | MF_UNCHECKED);
+			RECT rc;
+			GetClientRect(hwndMain, &rc);
+			SendMessage(hwndMain, WM_SIZE, SIZE_RESTORED, MAKELPARAM(rc.right, rc.bottom));
+			return 0;
+		}
+		if (LOWORD(wParam) == IDC_FUNCTIONLIST_LANGUAGE && HIWORD(wParam) == CBN_SELCHANGE) {
+			const LRESULT index = ComboBox_GetCurSel(hwndFunctionListLanguage);
+			if (index > 0) {
+				const LRESULT lexerID = ComboBox_GetItemData(hwndFunctionListLanguage, static_cast<int>(index));
+				if (lexerID != CB_ERR && lexerID != pLexCurrent->rid) {
+					Style_SetLexerFromID(static_cast<int>(lexerID));
+					RefreshFunctionListPanel();
+				}
+			}
+			return 0;
+		}
+		if (LOWORD(wParam) == IDC_FUNCTIONLIST && HIWORD(wParam) == LBN_DBLCLK) {
+			const LRESULT index = SendMessage(hwndFunctionListItems, LB_GETCURSEL, 0, 0);
+			if (index != LB_ERR) {
+				const LRESULT line = SendMessage(hwndFunctionListItems, LB_GETITEMDATA, index, 0);
+				SciCall_GotoLine(static_cast<Sci_Line>(line));
+				SetFocus(hwndEdit);
+			}
+			return 0;
+		}
+		break;
+	case WM_NCDESTROY:
+		RemoveWindowSubclass(hwnd, FunctionListPanelProc, 0);
+		if (hFunctionListFont != nullptr) {
+			DeleteObject(hFunctionListFont);
+			hFunctionListFont = nullptr;
+		}
+		break;
+	}
+	return DefSubclassProc(hwnd, umsg, wParam, lParam);
+}
+
+static bool CreateFunctionListPanel(HWND hwnd) noexcept {
+	if (hwndFunctionListPanel != nullptr) {
+		return true;
+	}
+	const HINSTANCE hInstance = GetWindowInstance(hwnd);
+	hwndFunctionListPanel = CreateWindowEx(WS_EX_CLIENTEDGE, WC_STATIC, nullptr,
+		WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+		0, 0, 0, 0, hwnd, nullptr, hInstance, nullptr);
+	if (hwndFunctionListPanel == nullptr) {
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return false;
+	}
+	const DWORD childStyle = WS_CHILD | WS_VISIBLE | WS_TABSTOP;
+	hwndFunctionListLanguage = CreateWindowEx(0, WC_COMBOBOX, nullptr,
+		childStyle | CBS_DROPDOWNLIST | WS_VSCROLL,
+		0, 0, 0, 0, hwndFunctionListPanel, AsPointer<HMENU, ULONG_PTR>(IDC_FUNCTIONLIST_LANGUAGE), hInstance, nullptr);
+	hwndFunctionListClose = CreateWindowEx(0, WC_BUTTON, L"\x00D7",
+		childStyle | BS_PUSHBUTTON,
+		0, 0, 0, 0, hwndFunctionListPanel, AsPointer<HMENU, ULONG_PTR>(IDC_FUNCTIONLIST_CLOSE), hInstance, nullptr);
+	hwndFunctionListItems = CreateWindowEx(0, WC_LISTBOX, nullptr,
+		childStyle | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_HSCROLL,
+		0, 0, 0, 0, hwndFunctionListPanel, AsPointer<HMENU, ULONG_PTR>(IDC_FUNCTIONLIST), hInstance, nullptr);
+	if (hwndFunctionListLanguage == nullptr || hwndFunctionListClose == nullptr || hwndFunctionListItems == nullptr) {
+		DestroyWindow(hwndFunctionListPanel);
+		hwndFunctionListPanel = nullptr;
+		hwndFunctionListLanguage = nullptr;
+		hwndFunctionListClose = nullptr;
+		hwndFunctionListItems = nullptr;
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return false;
+	}
+	const HFONT hFont = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+	SendMessage(hwndFunctionListLanguage, WM_SETFONT, AsInteger<WPARAM>(hFont), FALSE);
+	SendMessage(hwndFunctionListClose, WM_SETFONT, AsInteger<WPARAM>(hFont), FALSE);
+	if (!CreateFunctionListFont()) {
+		DestroyWindow(hwndFunctionListPanel);
+		hwndFunctionListPanel = nullptr;
+		hwndFunctionListLanguage = nullptr;
+		hwndFunctionListClose = nullptr;
+		hwndFunctionListItems = nullptr;
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return false;
+	}
+
+	WCHAR autoText[128];
+	GetString(IDS_FUNCTION_LIST_AUTO, autoText, COUNTOF(autoText));
+	ComboBox_AddString(hwndFunctionListLanguage, autoText);
+	const size_t lexerCount = Style_GetFunctionLexerCount();
+	for (size_t i = 0; i < lexerCount; i++) {
+		LPCEDITLEXER pLex = Style_GetFunctionLexer(i);
+		if (pLex != nullptr) {
+			const LRESULT index = ComboBox_AddString(hwndFunctionListLanguage, pLex->pszName);
+			if (index != CB_ERR && index != CB_ERRSPACE) {
+				ComboBox_SetItemData(hwndFunctionListLanguage, static_cast<int>(index), pLex->rid);
+			}
+		}
+	}
+	ComboBox_SetCurSel(hwndFunctionListLanguage, 0);
+	if (!SetWindowSubclass(hwndFunctionListPanel, FunctionListPanelProc, 0, 0)) {
+		DeleteObject(hFunctionListFont);
+		hFunctionListFont = nullptr;
+		DestroyWindow(hwndFunctionListPanel);
+		hwndFunctionListPanel = nullptr;
+		hwndFunctionListLanguage = nullptr;
+		hwndFunctionListClose = nullptr;
+		hwndFunctionListItems = nullptr;
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return false;
+	}
+	hwndFunctionListSplitter = CreateWindowEx(0, WC_STATIC, nullptr,
+		WS_CHILD | WS_CLIPSIBLINGS | SS_ETCHEDVERT | SS_NOTIFY,
+		0, 0, 0, 0, hwnd, nullptr, hInstance, nullptr);
+	if (hwndFunctionListSplitter == nullptr || !SetWindowSubclass(hwndFunctionListSplitter, FunctionListSplitterProc, 0, 0)) {
+		if (hwndFunctionListSplitter != nullptr) {
+			DestroyWindow(hwndFunctionListSplitter);
+			hwndFunctionListSplitter = nullptr;
+		}
+		DestroyWindow(hwndFunctionListPanel);
+		hwndFunctionListPanel = nullptr;
+		hwndFunctionListLanguage = nullptr;
+		hwndFunctionListClose = nullptr;
+		hwndFunctionListItems = nullptr;
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return false;
+	}
+	LayoutFunctionListPanel(hwndFunctionListPanel);
+	return true;
+}
+
+static void RefreshFunctionListPanel() noexcept {
+	if (hwndFunctionListPanel == nullptr || !IsWindowVisible(hwndFunctionListPanel)) {
+		return;
+	}
+	functionListPanelLexerID = pLexCurrent->rid;
+	SendMessage(hwndFunctionListItems, LB_RESETCONTENT, 0, 0);
+	if (hwndFunctionListLanguage != nullptr) {
+		ComboBox_SetCurSel(hwndFunctionListLanguage, 0);
+	}
+	const Sci_Position length = SciCall_GetLength();
+	if (length <= 0) {
+		return;
+	}
+	SciCall_EnsureStyledTo(length);
+	if (static_cast<uint64_t>(length) > (SIZE_MAX - 2) / 2) {
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return;
+	}
+	const size_t styledSize = static_cast<size_t>(length) * 2 + 2;
+	char *styledText = static_cast<char *>(NP2HeapAlloc(styledSize));
+	if (styledText == nullptr) {
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return;
+	}
+	Sci_TextRangeFull range{{0, length}, styledText};
+	if (SciCall_GetStyledTextFull(&range) < static_cast<size_t>(length)) {
+		NP2HeapFree(styledText);
+		MsgBoxWarn(MB_OK, IDS_BUFFERTOOSMALL);
+		return;
+	}
+
+	uint8_t styleFlags[256];
+	Style_GetFunctionStyleFlags(pLexCurrent, styleFlags);
+	const size_t textOffset = static_cast<size_t>(length) + 1;
+	size_t count = 0;
+	for (Sci_Position position = 0; position < length; ) {
+		const uint8_t flags = styleFlags[static_cast<unsigned char>(styledText[static_cast<size_t>(position)])];
+		if (flags & (FunctionLexerStyle_Function | FunctionLexerStyle_Definition)) {
+			const Sci_Position start = position;
+			while (position < length && (styleFlags[static_cast<unsigned char>(styledText[static_cast<size_t>(position)])] & (FunctionLexerStyle_Function | FunctionLexerStyle_Definition))) {
+				++position;
+			}
+			const uint8_t nameFlags = styleFlags[static_cast<unsigned char>(styledText[static_cast<size_t>(start)])];
+			if (IsFunctionListDefinition(styledText, length, start, position, (nameFlags & FunctionLexerStyle_Definition) != 0, styleFlags)) {
+				++count;
+			}
+		} else {
+			++position;
+		}
+	}
+	if (count > SIZE_MAX / sizeof(FunctionListEntry)) {
+		NP2HeapFree(styledText);
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return;
+	}
+	FunctionListEntry *entries = count ? static_cast<FunctionListEntry *>(NP2HeapAlloc(sizeof(FunctionListEntry) * count)) : nullptr;
+	if (count && entries == nullptr) {
+		NP2HeapFree(styledText);
+		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
+		return;
+	}
+	size_t index = 0;
+	for (Sci_Position position = 0; position < length && index < count; ) {
+		const uint8_t flags = styleFlags[static_cast<unsigned char>(styledText[static_cast<size_t>(position)])];
+		if (flags & (FunctionLexerStyle_Function | FunctionLexerStyle_Definition)) {
+			const Sci_Position start = position;
+			while (position < length && (styleFlags[static_cast<unsigned char>(styledText[static_cast<size_t>(position)])] & (FunctionLexerStyle_Function | FunctionLexerStyle_Definition))) {
+				++position;
+			}
+			const uint8_t nameFlags = styleFlags[static_cast<unsigned char>(styledText[static_cast<size_t>(start)])];
+			if (IsFunctionListDefinition(styledText, length, start, position, (nameFlags & FunctionLexerStyle_Definition) != 0, styleFlags)) {
+				const Sci_Position tokenLength = position - start;
+				if (tokenLength < 512) {
+					char name[512];
+					memcpy(name, styledText + textOffset + static_cast<size_t>(start), static_cast<size_t>(tokenLength));
+					const int cchName = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, static_cast<int>(tokenLength), entries[index].name, COUNTOF(entries[index].name) - 1);
+					if (cchName > 0) {
+						entries[index].name[cchName] = L'\0';
+						entries[index].line = static_cast<int>(SciCall_LineFromPosition(start));
+						++index;
+					}
+				}
+			}
+		} else {
+			++position;
+		}
+	}
+	NP2HeapFree(styledText);
+	for (size_t i = 0; i < index; i++) {
+		WCHAR item[160];
+		wsprintf(item, L"%s  (line %d)", entries[i].name, entries[i].line + 1);
+		const LRESULT itemIndex = SendMessage(hwndFunctionListItems, LB_ADDSTRING, 0, AsInteger<LPARAM>(item));
+		if (itemIndex != LB_ERR && itemIndex != LB_ERRSPACE) {
+			SendMessage(hwndFunctionListItems, LB_SETITEMDATA, itemIndex, entries[i].line);
+		}
+	}
+	NP2HeapFree(entries);
+}
+
+static void ShowFunctionList(HWND hwnd) noexcept {
+	if (hwndFunctionListPanel != nullptr && IsWindowVisible(hwndFunctionListPanel)) {
+		ShowWindow(hwndFunctionListPanel, SW_HIDE);
+		ShowWindow(hwndFunctionListSplitter, SW_HIDE);
+		CheckMenuItem(hmenuMain, IDM_VIEW_FUNCTION_LIST, MF_BYCOMMAND | MF_UNCHECKED);
+	} else if (CreateFunctionListPanel(hwnd)) {
+		ShowWindow(hwndFunctionListPanel, SW_SHOW);
+		ShowWindow(hwndFunctionListSplitter, SW_SHOW);
+		CheckMenuItem(hmenuMain, IDM_VIEW_FUNCTION_LIST, MF_BYCOMMAND | MF_CHECKED);
+		RefreshFunctionListPanel();
+	}
+	RECT rc;
+	GetClientRect(hwnd, &rc);
+	SendMessage(hwnd, WM_SIZE, SIZE_RESTORED, MAKELPARAM(rc.right, rc.bottom));
+}
+
 LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 	UNREFERENCED_PARAMETER(lParam);
 
@@ -2750,9 +3547,8 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 
 	case IDM_FILE_NEWWINDOW:
 	case IDM_FILE_NEWWINDOW2:
-	case IDT_FILE_NEWWINDOW:
 	case IDM_FILE_RESTART: {
-		const bool emptyWind = LOWORD(wParam) == IDM_FILE_NEWWINDOW || LOWORD(wParam) == IDT_FILE_NEWWINDOW;
+		const bool emptyWind = LOWORD(wParam) == IDM_FILE_NEWWINDOW;
 		if (!emptyWind && bSaveBeforeRunningTools && !FileSave(FileSaveFlag_Ask)) {
 			break;
 		}
@@ -2837,6 +3633,29 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		RunDlg(hwnd, tchCmdLine);
 	}
 	break;
+
+	case IDM_RUN_TOOLS_CONFIG:
+		if (RunToolsConfigDlg(hwnd, runTools, COUNTOF(runTools))) {
+			if (!SaveRunToolsSettings()) {
+				MsgBoxLastError(MB_OK, IDS_WRITEINI_FAIL);
+			}
+			UpdateRunToolsMenu();
+			UpdateToolbar();
+		}
+		break;
+
+	case IDM_RUN_TOOL_1:
+	case IDM_RUN_TOOL_2:
+	case IDM_RUN_TOOL_3:
+	case IDM_RUN_TOOL_4:
+	case IDM_RUN_TOOL_5:
+	case IDM_RUN_TOOL_6:
+	case IDM_RUN_TOOL_7:
+	case IDM_RUN_TOOL_8:
+	case IDM_RUN_TOOL_9:
+	case IDM_RUN_TOOL_10:
+		RunConfiguredTool(hwnd, runTools[LOWORD(wParam) - IDM_RUN_TOOL_1]);
+		break;
 
 	case IDM_FILE_OPENWITH:
 		if (bSaveBeforeRunningTools && !FileSave(FileSaveFlag_Ask)) {
@@ -3978,6 +4797,10 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		}
 		break;
 
+	case IDM_VIEW_FUNCTION_LIST:
+		ShowFunctionList(hwnd);
+		break;
+
 	case IDT_VIEW_TOGGLEFOLDS:
 	case IDM_VIEW_FOLD_DEFAULT:
 		if (bShowCodeFolding) {
@@ -4669,6 +5492,10 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 	case IDC_EDIT:
 		switch (pnmh->code) {
 		case SCN_UPDATEUI: {
+			if (hwndFunctionListPanel != nullptr && IsWindowVisible(hwndFunctionListPanel)
+				&& functionListPanelLexerID != pLexCurrent->rid) {
+				RefreshFunctionListPanel();
+			}
 			const unsigned updated = scn->updated;
 			if (updated & ~(SC_UPDATE_V_SCROLL | SC_UPDATE_H_SCROLL)) {
 				UpdateToolbar();
@@ -4884,6 +5711,9 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 			++dwCurrentDocReversion;
 			UpdateStatusBarCacheLineColumn();
 			AutoSave_Start(false);
+			if (hwndFunctionListPanel != nullptr && IsWindowVisible(hwndFunctionListPanel)) {
+				SetTimer(hwnd, ID_FUNCTIONLISTTIMER, 350, nullptr);
+			}
 			break;
 
 		case SCN_ZOOM:
@@ -5111,6 +5941,36 @@ static void GetWindowPositionSectionName(HMONITOR hMonitor, WCHAR (&sectionName)
 // LoadSettings()
 //
 //
+static void LoadRunToolsSettings() noexcept {
+	WCHAR key[32];
+	for (size_t i = 0; i < RunToolsCount; i++) {
+		wsprintf(key, L"Tool%uMenu", static_cast<unsigned>(i + 1));
+		IniGetString(L"RunTools", key, L"", runTools[i].menuText, COUNTOF(runTools[i].menuText));
+		wsprintf(key, L"Tool%uCommand", static_cast<unsigned>(i + 1));
+		IniGetString(L"RunTools", key, L"", runTools[i].command, COUNTOF(runTools[i].command));
+		wsprintf(key, L"Tool%uArguments", static_cast<unsigned>(i + 1));
+		IniGetString(L"RunTools", key, L"", runTools[i].arguments, COUNTOF(runTools[i].arguments));
+		wsprintf(key, L"Tool%uDirectory", static_cast<unsigned>(i + 1));
+		IniGetString(L"RunTools", key, L"", runTools[i].workingDirectory, COUNTOF(runTools[i].workingDirectory));
+	}
+}
+
+static bool SaveRunToolsSettings() noexcept {
+	WCHAR key[32];
+	bool success = true;
+	for (size_t i = 0; i < RunToolsCount; i++) {
+		wsprintf(key, L"Tool%uMenu", static_cast<unsigned>(i + 1));
+		success = IniSetString(L"RunTools", key, runTools[i].menuText) && success;
+		wsprintf(key, L"Tool%uCommand", static_cast<unsigned>(i + 1));
+		success = IniSetString(L"RunTools", key, runTools[i].command) && success;
+		wsprintf(key, L"Tool%uArguments", static_cast<unsigned>(i + 1));
+		success = IniSetString(L"RunTools", key, runTools[i].arguments) && success;
+		wsprintf(key, L"Tool%uDirectory", static_cast<unsigned>(i + 1));
+		success = IniSetString(L"RunTools", key, runTools[i].workingDirectory) && success;
+	}
+	return success;
+}
+
 void LoadSettings() noexcept {
 	IniSectionParser section;
 	constexpr DWORD cchIniSection = MAX_INI_SECTION_SIZE_SETTINGS;
@@ -5286,6 +6146,7 @@ void LoadSettings() noexcept {
 	pageSetupMargin.bottom = max(iValue, -1);
 
 	bSaveBeforeRunningTools = section.GetBool(L"SaveBeforeRunningTools", false);
+	LoadRunToolsSettings();
 	bOpenFolderWithMatepath = section.GetBool(L"OpenFolderWithMatepath", true);
 
 	iValue = section.GetInt(L"FileWatchingMode", FileWatchingMode_AutoReload);
@@ -8251,6 +9112,3 @@ void AutoSave_DoWork(FileSaveFlag saveFlag) noexcept {
 		DeleteFile(tchPath);
 	}
 }
-
-
-
