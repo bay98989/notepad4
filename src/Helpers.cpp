@@ -31,7 +31,6 @@
 #include <uxtheme.h>
 #include <vssym32.h>
 #include <cstdio>
-#include <vector>
 #include "config.h"
 #include "Helpers.h"
 #include "DarkMode.h"
@@ -1638,26 +1637,7 @@ HMODULE LoadLocalizedResourceDLL(UINT lang, LPCWSTR dllName) noexcept {
 #endif // NP2_ENABLE_APP_LOCALIZATION_DLL
 
 bool PathGetRealPath(HANDLE hFile, LPCWSTR lpszSrc, LPWSTR lpszDest) noexcept {
-	auto normalizePath = [](WCHAR *path, DWORD cch) noexcept {
-		if (cch == 0) {
-			return false;
-		}
-		if (StrStartsWith(path, L"\\\\?\\")) {
-			cch -= CSTRLEN(L"\\\\?\\");
-			WCHAR *p = path + CSTRLEN(L"\\\\?\\");
-			if (StrStartsWith(p, L"UNC\\")) {
-				cch -= 2;
-				p += 2;
-				*p = L'\\'; // replace 'C' with backslash
-			}
-			if (cch > 0) {
-				memcpy(path, p, (cch + 1)*sizeof(WCHAR));
-				return true;
-			}
-		}
-		return false;
-	};
-
+	WCHAR path[8 + MAX_PATH] = L"";
 	if (IsVistaAndAbove()) {
 		const bool closing = hFile == nullptr;
 		if (closing) {
@@ -1666,51 +1646,45 @@ bool PathGetRealPath(HANDLE hFile, LPCWSTR lpszSrc, LPWSTR lpszDest) noexcept {
 				nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
 		}
 		if (hFile != INVALID_HANDLE_VALUE) {
-			std::vector<WCHAR> path(8 + MAX_PATH);
-			for (;;) {
-				DWORD cch = GetFinalPathNameByHandleW(hFile, path.data(), static_cast<DWORD>(path.size()), FILE_NAME_OPENED);
-				if (cch == 0) {
-					break;
-				}
-				if (cch < path.size()) {
-					if (normalizePath(path.data(), cch)) {
-						memcpy(lpszDest, path.data(), (cch + 1)*sizeof(WCHAR));
-						if (closing) {
-							CloseHandle(hFile);
-						}
-						return true;
-					}
-					memcpy(lpszDest, path.data(), (cch + 1)*sizeof(WCHAR));
-					if (closing) {
-						CloseHandle(hFile);
-					}
-					return true;
-				}
-				path.resize(cch + 1);
-			}
+			DWORD cch = GetFinalPathNameByHandleW(hFile, path, COUNTOF(path), FILE_NAME_OPENED);
+			// TODO: support long path
 			if (closing) {
 				CloseHandle(hFile);
+			}
+			if (cch != 0 && StrStartsWith(path, L"\\\\?\\")) {
+				cch -= CSTRLEN(L"\\\\?\\");
+				WCHAR *p = path + CSTRLEN(L"\\\\?\\");
+				if (StrStartsWith(p, L"UNC\\")) {
+					cch -= 2;
+					p += 2;
+					*p = L'\\'; // replace 'C' with backslash
+				}
+				if (cch > 0 && cch < MAX_PATH) {
+					memcpy(lpszDest, p, (cch + 1)*sizeof(WCHAR));
+					return true;
+				}
 			}
 		}
 	}
 
-	std::vector<WCHAR> path(8 + MAX_PATH);
-	for (;;) {
-		DWORD cch = GetFullPathName(lpszSrc, static_cast<DWORD>(path.size()), path.data(), nullptr);
-		if (cch == 0) {
-			return false;
-		}
-		if (cch < path.size()) {
-			WCHAR *p = path.data();
-			if (normalizePath(p, cch)) {
-				memcpy(lpszDest, p, (cch + 1)*sizeof(WCHAR));
-				return true;
+	DWORD cch = GetFullPathName(lpszSrc, COUNTOF(path), path, nullptr);
+	if (cch > 0 && cch < COUNTOF(path)) {
+		WCHAR *p = path;
+		if (StrStartsWith(path, L"\\\\?\\")) {
+			cch -= CSTRLEN(L"\\\\?\\");
+			p += CSTRLEN(L"\\\\?\\");
+			if (StrStartsWith(p, L"UNC\\")) {
+				cch -= 2;
+				p += 2;
+				*p = L'\\'; // replace 'C' with backslash
 			}
+		}
+		if (cch > 0 && cch < MAX_PATH) {
 			memcpy(lpszDest, p, (cch + 1)*sizeof(WCHAR));
 			return true;
 		}
-		path.resize(cch + 1);
 	}
+	return false;
 }
 
 #if _WIN32_WINNT < _WIN32_WINNT_WIN8
