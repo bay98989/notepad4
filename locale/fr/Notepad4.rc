@@ -463,6 +463,7 @@ BEGIN
 		MENUITEM "Change &History Marker",			IDM_VIEW_CHANGE_HISTORY_MARKER
 		MENUITEM SEPARATOR
 		MENUITEM "Voir les sections de codes\tCtrl+Shift+Alt+F",IDM_VIEW_SHOW_FOLDING
+		MENUITEM "Liste des fonctions(&L)",IDM_VIEW_FUNCTION_LIST
 		POPUP "déplier/replier les séctions"
 		BEGIN
 			MENUITEM "&Niveaux par défaut\tShift+Alt+D",IDM_VIEW_FOLD_DEFAULT
@@ -721,6 +722,21 @@ BEGIN
 		MENUITEM "Exécuter le &document\tCtrl+L",	IDM_FILE_LAUNCH
 		MENUITEM "Ouvrir avec...",				IDM_FILE_OPENWITH
 		MENUITEM "Lancer une &commande...\tCtrl+R",			IDM_FILE_RUN
+		POPUP "Run Tools"
+		BEGIN
+			MENUITEM "Tool 1", IDM_RUN_TOOL_1
+			MENUITEM "Tool 2", IDM_RUN_TOOL_2
+			MENUITEM "Tool 3", IDM_RUN_TOOL_3
+			MENUITEM "Tool 4", IDM_RUN_TOOL_4
+			MENUITEM "Tool 5", IDM_RUN_TOOL_5
+			MENUITEM "Tool 6", IDM_RUN_TOOL_6
+			MENUITEM "Tool 7", IDM_RUN_TOOL_7
+			MENUITEM "Tool 8", IDM_RUN_TOOL_8
+			MENUITEM "Tool 9", IDM_RUN_TOOL_9
+			MENUITEM "Tool 10", IDM_RUN_TOOL_10
+			MENUITEM SEPARATOR
+			MENUITEM "Configure Run Tools...", IDM_RUN_TOOLS_CONFIG
+		END
 		MENUITEM SEPARATOR
 		POPUP "Action &sur sélection"
 		BEGIN
@@ -1175,6 +1191,38 @@ BEGIN
     DEFPUSHBUTTON   "OK",IDOK,121,65,50,14
     PUSHBUTTON      "Annuler",IDCANCEL,177,65,50,14
     SCROLLBAR       IDC_RESIZEGRIP3,7,65,10,10,SBS_SIZEGRIP | WS_CLIPSIBLINGS
+END
+
+IDD_RUNTOOLS DIALOGEX 0, 0, 370, 270
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Configure Run Tools"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    LTEXT           "Tool:",IDC_STATIC,7,10,60,10
+    COMBOBOX        IDC_RUNTOOLS_SLOT,75,7,288,90,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "",IDC_RUNTOOLS_PRESET_LABEL,7,31,62,10
+    COMBOBOX        IDC_RUNTOOLS_PRESET,75,27,288,90,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Menu text:",IDC_STATIC,7,53,62,10
+    EDITTEXT        IDC_RUNTOOLS_NAME,75,49,288,14,ES_AUTOHSCROLL
+    LTEXT           "Command:",IDC_STATIC,7,75,62,10
+    EDITTEXT        IDC_RUNTOOLS_COMMAND,75,71,252,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_RUNTOOLS_BROWSE_COMMAND,334,71,29,14
+    LTEXT           "Arguments:",IDC_STATIC,7,97,62,10
+    EDITTEXT        IDC_RUNTOOLS_ARGUMENTS,75,93,288,14,ES_AUTOHSCROLL
+    LTEXT           "Start in:",IDC_STATIC,7,119,62,10
+    EDITTEXT        IDC_RUNTOOLS_DIRECTORY,75,115,252,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_RUNTOOLS_BROWSE_DIRECTORY,334,115,29,14
+    LTEXT           "",IDC_RUNTOOLS_MACRO_LABEL,7,141,90,10
+    COMBOBOX        IDC_RUNTOOLS_MACRO,105,137,171,100,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "",IDC_RUNTOOLS_INSERT_MACRO,282,137,81,14
+    LTEXT           "",IDC_RUNTOOLS_PREVIEW_LABEL,7,162,356,10
+    LTEXT           "",IDC_RUNTOOLS_COMMANDLINE_LABEL,7,178,62,10
+    EDITTEXT        IDC_RUNTOOLS_PREVIEW,75,174,288,14,ES_AUTOHSCROLL | ES_READONLY | WS_TABSTOP
+    LTEXT           "",IDC_RUNTOOLS_DIRECTORY_LABEL,7,198,62,10
+    EDITTEXT        IDC_RUNTOOLS_PREVIEW_DIRECTORY,75,194,288,14,ES_AUTOHSCROLL | ES_READONLY | WS_TABSTOP
+    LTEXT           "Example: gcc.exe   Args: ""$(FilePath)"" -o ""$(FileDir)\\$(FileNameNoExt).exe""   Start in: $(FileDir)",IDC_STATIC,7,219,356,18
+    DEFPUSHBUTTON   "OK",IDOK,251,244,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,313,244,50,14
 END
 
 IDD_OPENWITH DIALOGEX 0, 0, 228, 206
@@ -1739,6 +1787,7 @@ BEGIN
     IDS_LINKDESCRIPTION     "Editer avec Notepad&4"
     IDS_FILTER_ALL          "Tous les fichiers (*.*)|*.*|"
     IDS_FILTER_EXE          "Fichiers exécutable (*.exe;*.com;*.bat;*.cmd;*.lnk;*.pif)|*.exe;*.com;*.bat;*.cmd;*.lnk;*.pif|All Files (*.*)|*.*|"
+    IDS_RUNTOOL_DIR_TITLE   "Select the tool's working directory"
 END
 
 STRINGTABLE
@@ -1823,7 +1872,6 @@ BEGIN
     IDT_VIEW_TOGGLEFOLDS    "plier/déplier les plis"
     IDT_FILE_LAUNCH         "Executer le document"
     IDT_VIEW_ALWAYSONTOP    "Toujours devant"
-    IDT_FILE_NEWWINDOW      "New Window"
 END
 
 STRINGTABLE
@@ -1909,6 +1957,16 @@ BEGIN
     IDS_SAVEDSETTINGS       "Le réglage actuel a bien été sauvegardé."
     IDS_CREATEINI_FAIL      "Erreur à la création du fichier de configuration."
     IDS_WRITEINI_FAIL       "Erreur lors de l'écriture du fichier de configuration."
+    IDS_ERR_RUNTOOL         "Unable to start run tool: %s."
+    IDS_RUNTOOLS_PRESET_CUSTOM "Custom"
+    IDS_RUNTOOLS_PRESET_GCC "Compile current file with GCC"
+    IDS_RUNTOOLS_PRESET_RUN "Run current program"
+    IDS_RUNTOOLS_PRESET_LABEL "Preset:"
+    IDS_RUNTOOLS_MACRO_LABEL "Insert variable:"
+    IDS_RUNTOOLS_INSERT_MACRO "Insert"
+    IDS_RUNTOOLS_PREVIEW_LABEL "Expanded preview:"
+    IDS_RUNTOOLS_COMMANDLINE_LABEL "Command line:"
+    IDS_RUNTOOLS_DIRECTORY_LABEL "Working directory:"
     IDS_SETTINGSNOTSAVED    "Aucun fichier de configuration existant n'a pu être trouvé.\nPour garder vos réglages de thème, sauvegardez vos réglages maintenant (F7) ou allez à la page de réglage des thèmes et exportez le thème actuel."
     IDS_EXPORT_FAIL         "Erreur lors de l'export des paramètres de thèmes dans ""%s""."
 END
@@ -2142,4 +2200,3 @@ END
 #include "../../src/Notepad4.ver"
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-
