@@ -484,6 +484,209 @@ void RunDlg(HWND hwnd, LPCWSTR lpstrDefault) noexcept {
 	ThemedDialogBoxParam(g_hInstance, MAKEINTRESOURCE(IDD_RUN), hwnd, RunDlgProc, AsInteger<LPARAM>(lpstrDefault));
 }
 
+static void RunToolsGetCurrent(HWND hwnd, RunToolConfig &tool) noexcept {
+	GetDlgItemText(hwnd, IDC_RUNTOOLS_NAME, tool.menuText, COUNTOF(tool.menuText));
+	GetDlgItemText(hwnd, IDC_RUNTOOLS_COMMAND, tool.command, COUNTOF(tool.command));
+	GetDlgItemText(hwnd, IDC_RUNTOOLS_ARGUMENTS, tool.arguments, COUNTOF(tool.arguments));
+	GetDlgItemText(hwnd, IDC_RUNTOOLS_DIRECTORY, tool.workingDirectory, COUNTOF(tool.workingDirectory));
+}
+
+static void RunToolsSetCurrent(HWND hwnd, const RunToolConfig &tool) noexcept {
+	SetDlgItemText(hwnd, IDC_RUNTOOLS_NAME, tool.menuText);
+	SetDlgItemText(hwnd, IDC_RUNTOOLS_COMMAND, tool.command);
+	SetDlgItemText(hwnd, IDC_RUNTOOLS_ARGUMENTS, tool.arguments);
+	SetDlgItemText(hwnd, IDC_RUNTOOLS_DIRECTORY, tool.workingDirectory);
+}
+
+struct RunToolsDialogState {
+	RunToolConfig *tools;
+	int current;
+	HWND lastEdit;
+};
+
+static void RunToolsUpdatePreview(HWND hwnd) noexcept {
+	RunToolConfig tool{};
+	RunToolsGetCurrent(hwnd, tool);
+	WCHAR commandLine[MAX_PATH * 2 + 2048 + 4];
+	WCHAR directory[MAX_PATH];
+	if (GetRunToolPreview(tool, commandLine, COUNTOF(commandLine), directory, COUNTOF(directory))) {
+		SetDlgItemText(hwnd, IDC_RUNTOOLS_PREVIEW, commandLine);
+		SetDlgItemText(hwnd, IDC_RUNTOOLS_PREVIEW_DIRECTORY, directory);
+	} else {
+		SetDlgItemText(hwnd, IDC_RUNTOOLS_PREVIEW, L"");
+		SetDlgItemText(hwnd, IDC_RUNTOOLS_PREVIEW_DIRECTORY, L"");
+	}
+}
+
+static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam) noexcept {
+	auto *state = AsPointer<RunToolsDialogState *>(GetWindowLongPtr(hwnd, DWLP_USER));
+	switch (umsg) {
+	case WM_INITDIALOG: {
+		state = AsPointer<RunToolsDialogState *>(lParam);
+		SetWindowLongPtr(hwnd, DWLP_USER, AsInteger<LONG_PTR>(state));
+		static constexpr struct {
+			int control;
+			UINT stringID;
+		} labels[] = {
+			{IDC_RUNTOOLS_PRESET_LABEL, IDS_RUNTOOLS_PRESET_LABEL},
+			{IDC_RUNTOOLS_MACRO_LABEL, IDS_RUNTOOLS_MACRO_LABEL},
+			{IDC_RUNTOOLS_INSERT_MACRO, IDS_RUNTOOLS_INSERT_MACRO},
+			{IDC_RUNTOOLS_PREVIEW_LABEL, IDS_RUNTOOLS_PREVIEW_LABEL},
+			{IDC_RUNTOOLS_COMMANDLINE_LABEL, IDS_RUNTOOLS_COMMANDLINE_LABEL},
+			{IDC_RUNTOOLS_DIRECTORY_LABEL, IDS_RUNTOOLS_DIRECTORY_LABEL},
+		};
+		WCHAR text[128];
+		for (const auto &label : labels) {
+			GetString(label.stringID, text, COUNTOF(text));
+			SetDlgItemText(hwnd, label.control, text);
+		}
+		for (int i = 0; i < 10; i++) {
+			WCHAR label[32];
+			wsprintf(label, L"Tool %d", i + 1);
+			ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_SLOT), label);
+		}
+		GetString(IDS_RUNTOOLS_PRESET_CUSTOM, text, COUNTOF(text));
+		ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), text);
+		GetString(IDS_RUNTOOLS_PRESET_GCC, text, COUNTOF(text));
+		ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), text);
+		GetString(IDS_RUNTOOLS_PRESET_RUN, text, COUNTOF(text));
+		ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), text);
+		ComboBox_SetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), 0);
+		static constexpr LPCWSTR macros[] = {
+			L"$(FilePath)", L"$(FileName)", L"$(FileNameNoExt)", L"$(FileDir)",
+		};
+		for (LPCWSTR macro : macros) {
+			ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_MACRO), macro);
+		}
+		ComboBox_SetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_MACRO), 0);
+		ComboBox_SetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_SLOT), 0);
+		state->current = 0;
+		state->lastEdit = GetDlgItem(hwnd, IDC_RUNTOOLS_COMMAND);
+		RunToolsSetCurrent(hwnd, state->tools[0]);
+		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_NAME), COUNTOF(state->tools[0].menuText) - 1);
+		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_COMMAND), COUNTOF(state->tools[0].command) - 1);
+		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_ARGUMENTS), COUNTOF(state->tools[0].arguments) - 1);
+		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_DIRECTORY), COUNTOF(state->tools[0].workingDirectory) - 1);
+		RunToolsUpdatePreview(hwnd);
+		DarkMode_InitDialog(hwnd);
+		return TRUE;
+	}
+
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDC_RUNTOOLS_SLOT:
+			if (HIWORD(wParam) == CBN_SELCHANGE) {
+				RunToolsGetCurrent(hwnd, state->tools[state->current]);
+				const int current = ComboBox_GetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_SLOT));
+				state->current = current;
+				RunToolsSetCurrent(hwnd, state->tools[current]);
+				state->lastEdit = GetDlgItem(hwnd, IDC_RUNTOOLS_COMMAND);
+				RunToolsUpdatePreview(hwnd);
+			}
+			break;
+
+		case IDC_RUNTOOLS_PRESET:
+			if (HIWORD(wParam) == CBN_SELCHANGE) {
+				RunToolConfig tool{};
+				WCHAR presetName[COUNTOF(tool.menuText)];
+				switch (ComboBox_GetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET))) {
+				case 1:
+					RunToolsGetCurrent(hwnd, state->tools[state->current]);
+					GetString(IDS_RUNTOOLS_PRESET_GCC, presetName, COUNTOF(presetName));
+					lstrcpy(tool.menuText, presetName);
+					lstrcpyn(tool.command, state->tools[state->current].command, COUNTOF(tool.command));
+					if (StrIsEmpty(tool.command)) {
+						lstrcpy(tool.command, L"gcc.exe");
+					}
+					lstrcpy(tool.arguments, L"\"$(FilePath)\" -o \"$(FileDir)\\$(FileNameNoExt).exe\"");
+					lstrcpy(tool.workingDirectory, L"$(FileDir)");
+					RunToolsSetCurrent(hwnd, tool);
+					break;
+				case 2:
+					GetString(IDS_RUNTOOLS_PRESET_RUN, presetName, COUNTOF(presetName));
+					lstrcpy(tool.menuText, presetName);
+					lstrcpy(tool.command, L"$(FileDir)\\$(FileNameNoExt).exe");
+					lstrcpy(tool.workingDirectory, L"$(FileDir)");
+					RunToolsSetCurrent(hwnd, tool);
+					break;
+				}
+				RunToolsUpdatePreview(hwnd);
+			}
+			break;
+
+		case IDC_RUNTOOLS_BROWSE_COMMAND: {
+			WCHAR command[MAX_PATH];
+			GetDlgItemText(hwnd, IDC_RUNTOOLS_COMMAND, command, COUNTOF(command));
+			FileDialog dialog {nullptr, IDS_FILTER_EXE, 0, FileDialogType_OpenParseFilter, FileDialog_FindFile, nullptr};
+			if (LPWSTR path = dialog.Show(hwnd, nullptr, command)) {
+				SetDlgItemText(hwnd, IDC_RUNTOOLS_COMMAND, path);
+				CoTaskMemFree(path);
+			}
+		} break;
+
+		case IDC_RUNTOOLS_BROWSE_DIRECTORY: {
+			WCHAR directory[MAX_PATH];
+			GetDlgItemText(hwnd, IDC_RUNTOOLS_DIRECTORY, directory, COUNTOF(directory));
+			if (GetDirectory(hwnd, IDS_RUNTOOL_DIR_TITLE, directory, directory)) {
+				SetDlgItemText(hwnd, IDC_RUNTOOLS_DIRECTORY, directory);
+			}
+		} break;
+
+		case IDC_RUNTOOLS_INSERT_MACRO: {
+			const int index = ComboBox_GetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_MACRO));
+			if (index != CB_ERR && state->lastEdit != nullptr) {
+				static constexpr LPCWSTR macros[] = {
+					L"$(FilePath)", L"$(FileName)", L"$(FileNameNoExt)", L"$(FileDir)",
+				};
+				if (static_cast<size_t>(index) < COUNTOF(macros)) {
+					SetFocus(state->lastEdit);
+					Edit_ReplaceSel(state->lastEdit, macros[static_cast<size_t>(index)]);
+				}
+			}
+		} break;
+
+		case IDC_RUNTOOLS_NAME:
+		case IDC_RUNTOOLS_COMMAND:
+		case IDC_RUNTOOLS_ARGUMENTS:
+		case IDC_RUNTOOLS_DIRECTORY:
+			if (HIWORD(wParam) == EN_SETFOCUS) {
+				if (LOWORD(wParam) != IDC_RUNTOOLS_NAME) {
+					state->lastEdit = AsPointer<HWND>(lParam);
+				}
+			} else if (HIWORD(wParam) == EN_CHANGE) {
+				RunToolsUpdatePreview(hwnd);
+			}
+			break;
+
+		case IDOK: {
+			RunToolsGetCurrent(hwnd, state->tools[state->current]);
+			EndDialog(hwnd, IDOK);
+		} break;
+
+		case IDCANCEL:
+			EndDialog(hwnd, IDCANCEL);
+			break;
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+bool RunToolsConfigDlg(HWND hwnd, RunToolConfig *tools, size_t count) noexcept {
+	if (count != 10) {
+		return false;
+	}
+	RunToolConfig localTools[10];
+	memcpy(localTools, tools, sizeof(localTools));
+	RunToolsDialogState state{localTools, 0, nullptr};
+	const INT_PTR result = ThemedDialogBoxParam(g_hInstance, MAKEINTRESOURCE(IDD_RUNTOOLS), hwnd, RunToolsConfigDlgProc, AsInteger<LPARAM>(&state));
+	if (result == IDOK) {
+		memcpy(tools, localTools, sizeof(localTools));
+		return true;
+	}
+	return false;
+}
+
 //=============================================================================
 //
 // OpenWithDlgProc()
@@ -1678,41 +1881,23 @@ static INT_PTR CALLBACK SelectEncodingDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 		GetString(pdd->uidLabel, wch, COUNTOF(wch));
 		SetDlgItemText(hwnd, IDC_ENCODING_LABEL, wch);
 
+		// TODO: following code is buggy when icon size for shfi.hIcon is larger than bmp.bmHeight,
+		// we need to determine icon size first, then resize the encoding mask bitmap accordingly.
+
 		const int resource = GetBitmapResourceIdForCurrentDPI(IDB_ENCODING16);
 		HBITMAP hbmp = static_cast<HBITMAP>(LoadImage(g_exeInstance, MAKEINTRESOURCE(resource), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION));
 		hbmp = ResizeImageForCurrentDPI(hbmp);
 		BITMAP bmp;
 		GetObject(hbmp, sizeof(BITMAP), &bmp);
+		HIMAGELIST himl = ImageList_Create(bmp.bmHeight, bmp.bmHeight, ILC_COLOR32 | ILC_MASK, 0, 0);
+		ImageList_AddMasked(himl, hbmp, CLR_DEFAULT);
+		DeleteObject(hbmp);
 
 		// folder icon
 		const DWORD iconFlags = GetCurrentIconHandleFlags();
 		SHFILEINFO shfi;
 		SHGetFileInfo(L"Icon", FILE_ATTRIBUTE_DIRECTORY, &shfi, sizeof(SHFILEINFO), iconFlags);
-		int iconSize = max(bmp.bmHeight, bmp.bmWidth);
-		if (shfi.hIcon != nullptr) {
-			ICONINFO iconInfo{};
-			if (GetIconInfo(shfi.hIcon, &iconInfo)) {
-				BITMAP iconBmp{};
-				const HBITMAP hbmIcon = iconInfo.hbmColor ? iconInfo.hbmColor : iconInfo.hbmMask;
-				if (hbmIcon != nullptr && GetObject(hbmIcon, sizeof(BITMAP), &iconBmp)) {
-					const int iconDimension = max(int(iconBmp.bmWidth), int(iconBmp.bmHeight));
-					iconSize = max(iconSize, iconDimension);
-				}
-				if (iconInfo.hbmColor != nullptr) {
-					DeleteObject(iconInfo.hbmColor);
-				}
-				if (iconInfo.hbmMask != nullptr) {
-					DeleteObject(iconInfo.hbmMask);
-				}
-			}
-		}
-		HIMAGELIST himl = ImageList_Create(iconSize, iconSize, ILC_COLOR32 | ILC_MASK, 0, 0);
-		ImageList_AddMasked(himl, hbmp, CLR_DEFAULT);
-		DeleteObject(hbmp);
-		if (shfi.hIcon != nullptr) {
-			ImageList_AddIcon(himl, shfi.hIcon);
-			DestroyIcon(shfi.hIcon);
-		}
+		ImageList_AddIcon(himl, shfi.hIcon);
 
 		HWND hwndTV = GetDlgItem(hwnd, IDC_ENCODINGLIST);
 		DarkMode_InitTreeView(hwndTV);
