@@ -78,7 +78,7 @@ static UINT uTrayIconDPI = 0;
 
 #define TOOLBAR_COMMAND_BASE	IDT_FILE_NEW
 //#define DefaultToolbarButtons	L"22 3 0 1 27 2 0 4 18 19 0 5 6 0 7 8 9 20 0 10 11 0 12 0 24 0 13 14 0 15 16 0 17"
-#define DefaultToolbarButtons	L"1 2 0 4 18 0 5 6 0 7 8 9 20 0 10 11 0 12 0 24 0 13 14 0"
+#define DefaultToolbarButtons	L"1 2 0 4 18 0 5 6 0 20 7 8 9 0 10 11 0 12 0 13 14 0 25 26"
 // NOLINTBEGIN(readability-redundant-zero-initializer)
 #if NP2_ENABLE_CUSTOMIZE_TOOLBAR_LABELS
 static TBBUTTON tbbMainWnd[] =
@@ -111,9 +111,9 @@ static const TBBUTTON tbbMainWnd[] =
 	{21, 	IDT_FILE_OPENFAV, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{22, 	IDT_FILE_ADDTOFAV, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{23, 	IDT_VIEW_TOGGLEFOLDS, 	TBSTATE_ENABLED, BTNS_DROPDOWN, {0}, 0, 0},
-	{24, 	IDT_FILE_LAUNCH, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{24, 	IDT_FILE_LAUNCH, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0}, ///
 	{25, 	IDT_VIEW_ALWAYSONTOP, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
-//	{26, 	IDT_FILE_NEWWINDOW, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{26, 	IDT_FILE_NEWWINDOW, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},  ///
 };
 // NOLINTEND(readability-redundant-zero-initializer)
 
@@ -3427,7 +3427,7 @@ static void RefreshFunctionListPanel() noexcept {
 	NP2HeapFree(styledText);
 	for (size_t i = 0; i < index; i++) {
 		WCHAR item[160];
-		wsprintf(item, L"%s  (line %d)", entries[i].name, entries[i].line + 1);
+		wsprintf(item, L"%s  (行号:%d)", entries[i].name, entries[i].line + 1);
 		const LRESULT itemIndex = SendMessage(hwndFunctionListItems, LB_ADDSTRING, 0, AsInteger<LPARAM>(item));
 		if (itemIndex != LB_ERR && itemIndex != LB_ERRSPACE) {
 			SendMessage(hwndFunctionListItems, LB_SETITEMDATA, itemIndex, entries[i].line);
@@ -3547,10 +3547,16 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 
 	case IDM_FILE_NEWWINDOW:
 	case IDM_FILE_NEWWINDOW2:
-	case IDM_FILE_RESTART: {
-		const bool emptyWind = LOWORD(wParam) == IDM_FILE_NEWWINDOW;
+	case IDT_FILE_NEWWINDOW:
+
+	case IDM_FILE_RESTART: {   ///
+		const bool emptyWind = LOWORD(wParam) == IDM_FILE_NEWWINDOW || LOWORD(wParam) == IDT_FILE_NEWWINDOW;
+		//const bool emptyWind = LOWORD(wParam) == IDM_FILE_NEWWINDOW;
 		if (!emptyWind && bSaveBeforeRunningTools && !FileSave(FileSaveFlag_Ask)) {
-			break;
+
+
+		break;
+	
 		}
 
 		WCHAR szModuleName[MAX_PATH];
@@ -3589,7 +3595,12 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		OpenContainingFolder(hwnd, szCurFile, true);
 		break;
 
-	case IDT_FILE_LAUNCH:
+	case IDT_FILE_LAUNCH:  ///工具栏上运行
+		{
+			//IDM_RUN_TOOL_1；
+			return MsgCommand(hwnd, IDM_RUN_TOOL_1, 0);
+			break;
+		}
 	case IDM_FILE_LAUNCH: {
 		if (StrIsEmpty(szCurFile)) {
 			break;
@@ -3640,7 +3651,6 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 				MsgBoxLastError(MB_OK, IDS_WRITEINI_FAIL);
 			}
 			UpdateRunToolsMenu();
-			UpdateToolbar();
 		}
 		break;
 

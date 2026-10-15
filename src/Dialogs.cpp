@@ -516,6 +516,7 @@ static void RunToolsUpdatePreview(HWND hwnd) noexcept {
 		SetDlgItemText(hwnd, IDC_RUNTOOLS_PREVIEW, L"");
 		SetDlgItemText(hwnd, IDC_RUNTOOLS_PREVIEW_DIRECTORY, L"");
 	}
+	EnableWindow(GetDlgItem(hwnd, IDC_RUNTOOLS_TEST), StrNotEmpty(tool.command));
 }
 
 static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam) noexcept {
@@ -534,6 +535,7 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 			{IDC_RUNTOOLS_PREVIEW_LABEL, IDS_RUNTOOLS_PREVIEW_LABEL},
 			{IDC_RUNTOOLS_COMMANDLINE_LABEL, IDS_RUNTOOLS_COMMANDLINE_LABEL},
 			{IDC_RUNTOOLS_DIRECTORY_LABEL, IDS_RUNTOOLS_DIRECTORY_LABEL},
+			{IDC_RUNTOOLS_TEST, IDS_RUNTOOLS_TEST},
 		};
 		WCHAR text[128];
 		for (const auto &label : labels) {
@@ -581,6 +583,7 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 				state->current = current;
 				RunToolsSetCurrent(hwnd, state->tools[current]);
 				state->lastEdit = GetDlgItem(hwnd, IDC_RUNTOOLS_COMMAND);
+				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
 				RunToolsUpdatePreview(hwnd);
 			}
 			break;
@@ -591,13 +594,9 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 				WCHAR presetName[COUNTOF(tool.menuText)];
 				switch (ComboBox_GetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET))) {
 				case 1:
-					RunToolsGetCurrent(hwnd, state->tools[state->current]);
 					GetString(IDS_RUNTOOLS_PRESET_GCC, presetName, COUNTOF(presetName));
 					lstrcpy(tool.menuText, presetName);
-					lstrcpyn(tool.command, state->tools[state->current].command, COUNTOF(tool.command));
-					if (StrIsEmpty(tool.command)) {
-						lstrcpy(tool.command, L"gcc.exe");
-					}
+					lstrcpy(tool.command, L"gcc.exe");
 					lstrcpy(tool.arguments, L"\"$(FilePath)\" -o \"$(FileDir)\\$(FileNameNoExt).exe\"");
 					lstrcpy(tool.workingDirectory, L"$(FileDir)");
 					RunToolsSetCurrent(hwnd, tool);
@@ -610,6 +609,7 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 					RunToolsSetCurrent(hwnd, tool);
 					break;
 				}
+				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
 				RunToolsUpdatePreview(hwnd);
 			}
 			break;
@@ -645,6 +645,16 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 			}
 		} break;
 
+		case IDC_RUNTOOLS_TEST: {
+			RunToolConfig tool{};
+			RunToolsGetCurrent(hwnd, tool);
+			if (RunConfiguredTool(hwnd, tool)) {
+				WCHAR text[256];
+				GetString(IDS_RUNTOOLS_STARTED, text, COUNTOF(text));
+				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, text);
+			}
+		} break;
+
 		case IDC_RUNTOOLS_NAME:
 		case IDC_RUNTOOLS_COMMAND:
 		case IDC_RUNTOOLS_ARGUMENTS:
@@ -654,6 +664,7 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 					state->lastEdit = AsPointer<HWND>(lParam);
 				}
 			} else if (HIWORD(wParam) == EN_CHANGE) {
+				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
 				RunToolsUpdatePreview(hwnd);
 			}
 			break;
