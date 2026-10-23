@@ -577,11 +577,14 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
 		case IDC_RUNTOOLS_SLOT:
-			if (HIWORD(wParam) == CBN_SELCHANGE) {
+			if (HIWORD(wParam) == CBN_SELCHANGE && state != nullptr) {
 				RunToolsGetCurrent(hwnd, state->tools[state->current]);
-				const int current = ComboBox_GetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_SLOT));
-				state->current = current;
-				RunToolsSetCurrent(hwnd, state->tools[current]);
+				const int current = static_cast<int>(ComboBox_GetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_SLOT)));
+				// ComboBox_GetCurSel 可能返回 CB_ERR(-1)，直接用会读到 tools[-1]
+				if (current >= 0 && current < static_cast<int>(RunToolSlotCount)) {
+					state->current = current;
+					RunToolsSetCurrent(hwnd, state->tools[current]);
+				}
 				state->lastEdit = GetDlgItem(hwnd, IDC_RUNTOOLS_COMMAND);
 				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
 				RunToolsUpdatePreview(hwnd);
@@ -684,10 +687,10 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 }
 
 bool RunToolsConfigDlg(HWND hwnd, RunToolConfig *tools, size_t count) noexcept {
-	if (count != 10) {
+	if (count != RunToolSlotCount) {
 		return false;
 	}
-	RunToolConfig localTools[10];
+	RunToolConfig localTools[RunToolSlotCount];
 	memcpy(localTools, tools, sizeof(localTools));
 	RunToolsDialogState state{localTools, 0, nullptr};
 	const INT_PTR result = ThemedDialogBoxParam(g_hInstance, MAKEINTRESOURCE(IDD_RUNTOOLS), hwnd, RunToolsConfigDlgProc, AsInteger<LPARAM>(&state));

@@ -146,38 +146,6 @@ BEGIN
         MENUITEM "删除(&D)\tDelete",              IDM_EDIT_DELETE
         MENUITEM "全选(&A)\tCtrl+A",              IDM_EDIT_SELECTALL
         MENUITEM SEPARATOR
-        POPUP "列编辑"
-        BEGIN
-            MENUITEM "添加/取消行注释(&O)\tCtrl+/",        IDM_EDIT_LINECOMMENT
-            MENUITEM "添加/取消块注释(&C)\tCtrl+Q",        IDM_EDIT_STREAMCOMMENT
-            MENUITEM "增加缩进(&I)\tTab",               IDM_EDIT_INDENT
-            MENUITEM "减少缩进(&U)\tShift+Tab",         IDM_EDIT_UNINDENT
-            MENUITEM SEPARATOR
-            MENUITEM "列块前面插入文本(&F)...",             IDM_EDIT_COLUMN_INSERT_BEFORE
-            MENUITEM "列块后面插入文本(&A)...",             IDM_EDIT_COLUMN_INSERT_AFTER
-            MENUITEM "列块左移(&L)",                    IDM_EDIT_MOVE_BLOCK_LEFT
-            MENUITEM "列块右移(&R)",                    IDM_EDIT_MOVE_BLOCK_RIGHT
-        END
-        POPUP "行编辑(&L)"
-        BEGIN
-            MENUITEM "上移(&U)\tAlt+Up",              IDM_EDIT_MOVELINEUP
-            MENUITEM "下移(&V)\tAlt+Down",            IDM_EDIT_MOVELINEDOWN
-            MENUITEM "与上一行交换(&R)\tAlt+S",           IDM_EDIT_LINETRANSPOSE
-            MENUITEM SEPARATOR
-            MENUITEM "行排序(&O)...\tAlt+O",           IDM_EDIT_SORTLINES
-            MENUITEM "行修改(&M)...\tAlt+M",           IDM_EDIT_MODIFYLINES
-            MENUITEM "行对齐(&N)...\tAlt+J",           IDM_EDIT_ALIGN
-            MENUITEM SEPARATOR
-            MENUITEM "重复行(&D)\tCtrl+D",             IDM_EDIT_DUPLICATELINE
-            MENUITEM "剪切行(&T)\tCtrl+Shift+X",       IDM_EDIT_CUTLINE
-            MENUITEM "复制行(&C)\tCtrl+Shift+C",       IDM_EDIT_COPYLINE
-            MENUITEM "删除行(&E)\tCtrl+Shift+D",       IDM_EDIT_DELETELINE
-            MENUITEM SEPARATOR
-            MENUITEM "行合并(&J)\tCtrl+J",             IDM_EDIT_JOINLINES
-            MENUITEM "行切分(&S)\tCtrl+I",             IDM_EDIT_SPLITLINES
-            MENUITEM "段落切分(&W)...",                 IDM_EDIT_COLUMNWRAP
-            MENUITEM "段落合并(&P)\tCtrl+Shift+J",      IDM_EDIT_JOINLINESEX
-        END
         POPUP "转换(&V)"
         BEGIN
             MENUITEM "大写(&U)\tCtrl+Shift+U",        IDM_EDIT_CONVERTUPPERCASE
@@ -200,6 +168,40 @@ BEGIN
             MENUITEM "当前日期和时间(&T)",                 IDM_EDIT_INSERT_LOC_DATETIME
             MENUITEM "时间/日期(短格式)(&S)\tCtrl+F5",     IDM_EDIT_INSERT_SHORTDATE
             MENUITEM "时间/日期(长格式)(&L)\tCtrl+Shift+F5", IDM_EDIT_INSERT_LONGDATE
+        END
+        MENUITEM SEPARATOR
+        POPUP "列编辑"
+        BEGIN
+            MENUITEM "添加/取消行注释(&O)\tCtrl+/",        IDM_EDIT_LINECOMMENT
+            MENUITEM "添加/取消块注释(&C)\tCtrl+Q",        IDM_EDIT_STREAMCOMMENT
+            MENUITEM "增加缩进(&I)\tTab",               IDM_EDIT_INDENT
+            MENUITEM "减少缩进(&U)\tShift+Tab",         IDM_EDIT_UNINDENT
+            MENUITEM SEPARATOR
+            MENUITEM "列块前面插入文本(&F)...",             IDM_EDIT_COLUMN_INSERT_BEFORE
+            MENUITEM "列块后面插入文本(&A)...",             IDM_EDIT_COLUMN_INSERT_AFTER
+            MENUITEM "列块左移(&L)",                    IDM_EDIT_MOVE_BLOCK_LEFT
+            MENUITEM "列块右移(&R)",                    IDM_EDIT_MOVE_BLOCK_RIGHT
+            MENUITEM "自动增加行号(&N)...",               IDM_EDIT_COLUMNEDIT
+        END
+        POPUP "行编辑(&L)"
+        BEGIN
+            MENUITEM "上移(&U)\tAlt+Up",              IDM_EDIT_MOVELINEUP
+            MENUITEM "下移(&V)\tAlt+Down",            IDM_EDIT_MOVELINEDOWN
+            MENUITEM "与上一行交换(&R)\tAlt+S",           IDM_EDIT_LINETRANSPOSE
+            MENUITEM SEPARATOR
+            MENUITEM "行排序(&O)...\tAlt+O",           IDM_EDIT_SORTLINES
+            MENUITEM "行修改(&M)...\tAlt+M",           IDM_EDIT_MODIFYLINES
+            MENUITEM "行对齐(&N)...\tAlt+J",           IDM_EDIT_ALIGN
+            MENUITEM SEPARATOR
+            MENUITEM "重复行(&D)\tCtrl+D",             IDM_EDIT_DUPLICATELINE
+            MENUITEM "剪切行(&T)\tCtrl+Shift+X",       IDM_EDIT_CUTLINE
+            MENUITEM "复制行(&C)\tCtrl+Shift+C",       IDM_EDIT_COPYLINE
+            MENUITEM "删除行(&E)\tCtrl+Shift+D",       IDM_EDIT_DELETELINE
+            MENUITEM SEPARATOR
+            MENUITEM "行合并(&J)\tCtrl+J",             IDM_EDIT_JOINLINES
+            MENUITEM "行切分(&S)\tCtrl+I",             IDM_EDIT_SPLITLINES
+            MENUITEM "段落切分(&W)...",                 IDM_EDIT_COLUMNWRAP
+            MENUITEM "段落合并(&P)\tCtrl+Shift+J",      IDM_EDIT_JOINLINESEX
         END
     END
     POPUP "搜索(&S)"
@@ -421,6 +423,20 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "全选(&A)",                      IDM_EDIT_SELECTALL
         MENUITEM SEPARATOR
+        POPUP "转换(&V)"
+        BEGIN
+            MENUITEM "大写(&U)\tCtrl+Shift+U",        IDM_EDIT_CONVERTUPPERCASE
+            MENUITEM "小写(&L)\tCtrl+U",              IDM_EDIT_CONVERTLOWERCASE
+            MENUITEM "反转大小写(&V)\tCtrl+Alt+U",       IDM_EDIT_INVERTCASE
+            MENUITEM SEPARATOR
+            MENUITEM "空格转制表符(&T)\tCtrl+Shift+T",    IDM_EDIT_CONVERTSPACES
+            MENUITEM "制表符转空格(&N)\tCtrl+Shift+S",    IDM_EDIT_CONVERTTABS
+            MENUITEM "使用制表符缩进(&I)\tCtrl+Alt+T",     IDM_EDIT_CONVERTSPACES2
+            MENUITEM "使用空格缩进(&F)\tCtrl+Alt+S",      IDM_EDIT_CONVERTTABS2
+            MENUITEM SEPARATOR
+            MENUITEM "转十六进制(&H)\tCtrl+Alt+H",       IDM_EDIT_NUM2HEX
+            MENUITEM "转十进制(&D)\tCtrl+Alt+D",        IDM_EDIT_NUM2DEC
+        END
         POPUP "插入时间(&N)"
         BEGIN
             MENUITEM "当前日期(&D)",                    IDM_EDIT_INSERT_LOC_DATE
@@ -440,6 +456,7 @@ BEGIN
             MENUITEM "列块后面插入文本(&A)...",             IDM_EDIT_COLUMN_INSERT_AFTER
             MENUITEM "列块左移(&L)",                    IDM_EDIT_MOVE_BLOCK_LEFT
             MENUITEM "列块右移(&R)",                    IDM_EDIT_MOVE_BLOCK_RIGHT
+            MENUITEM "自动增加行号(&N)...",               IDM_EDIT_COLUMNEDIT
         END
         POPUP "行编辑(&L)"
         BEGIN
@@ -825,7 +842,7 @@ BEGIN
     SCROLLBAR       IDC_RESIZEGRIP3,7,65,10,10,SBS_SIZEGRIP | WS_CLIPSIBLINGS
 END
 
-IDD_RUNTOOLS DIALOGEX 0, 0, 305, 175
+IDD_RUNTOOLS DIALOGEX 0, 0, 305, 180
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "配置运行工具"
 FONT 9, "Segoe UI", 400, 0, 0x1
@@ -841,16 +858,18 @@ BEGIN
     PUSHBUTTON      "...",IDC_RUNTOOLS_BROWSE_COMMAND,271,67,28,14
     LTEXT           "参数:",IDC_STATIC,7,89,33,10
     EDITTEXT        IDC_RUNTOOLS_ARGUMENTS,49,86,250,14,ES_AUTOHSCROLL
-    LTEXT           "起始目录:",IDC_STATIC,7,109,38,10
+    LTEXT           "起始目录:",IDC_RUNTOOLS_DIRECTORY_LABEL,7,109,38,10
     EDITTEXT        IDC_RUNTOOLS_DIRECTORY,49,106,215,14,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_RUNTOOLS_BROWSE_DIRECTORY,269,106,30,14
     LTEXT           "插入文本：",IDC_RUNTOOLS_MACRO_LABEL,7,126,53,10
-    COMBOBOX        IDC_RUNTOOLS_MACRO,79,124,99,300,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "",IDC_RUNTOOLS_INSERT_MACRO,186,124,43,12
-    EDITTEXT        IDC_RUNTOOLS_PREVIEW,49,140,249,14,ES_AUTOHSCROLL | ES_READONLY
-    DEFPUSHBUTTON   "确定",IDOK,188,158,50,14
-    PUSHBUTTON      "取消",IDCANCEL,248,158,50,14
-    LTEXT           "运行预览:",IDC_RUNTOOLS_PREVIEW_LABEL,7,143,40,10
+    COMBOBOX        IDC_RUNTOOLS_MACRO,79,124,99,120,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "插入",IDC_RUNTOOLS_INSERT_MACRO,186,123,43,13
+    LTEXT           "运行预览:",IDC_RUNTOOLS_COMMANDLINE_LABEL,7,145,40,10
+    EDITTEXT        IDC_RUNTOOLS_PREVIEW,49,142,249,14,ES_AUTOHSCROLL | ES_READONLY
+//    LTEXT           "运行目录:",IDC_RUNTOOLS_PREVIEW_LABEL,7,163,40,10
+//    EDITTEXT        IDC_RUNTOOLS_PREVIEW_DIRECTORY,49,160,249,14,ES_AUTOHSCROLL | ES_READONLY
+    DEFPUSHBUTTON   "确定",IDOK,194,162,50,14
+    PUSHBUTTON      "取消",IDCANCEL,248,162,50,14
 END
 
 IDD_OPENWITH DIALOGEX 0, 0, 228, 206
@@ -1171,6 +1190,27 @@ BEGIN
     EDITTEXT        IDC_EDIT_COLUMN_TEXT,100,12,148,14,ES_AUTOHSCROLL
     DEFPUSHBUTTON   "确定",IDOK,100,48,56,14
     PUSHBUTTON      "取消",IDCANCEL,164,48,56,14
+END
+
+IDD_COLUMNEDIT DIALOGEX 0, 0, 250, 138
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "列编辑"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    LTEXT           "起始值(留空则只插入文字):",IDC_STATIC,7,10,84,8
+    EDITTEXT        IDC_CE_START,95,8,60,14,ES_AUTOHSCROLL
+    LTEXT           "增量:",IDC_STATIC,7,30,40,8
+    EDITTEXT        IDC_CE_STEP,95,28,60,14,ES_AUTOHSCROLL
+    LTEXT           "补零位数(1-32):",IDC_STATIC,7,50,60,8
+    EDITTEXT        IDC_CE_PAD,95,48,60,14,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "十六进制(&H)",IDC_CE_HEX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,50,60,10
+    LTEXT           "前缀:",IDC_STATIC,7,70,40,8
+    EDITTEXT        IDC_CE_PREFIX,95,68,148,14,ES_AUTOHSCROLL
+    LTEXT           "后缀:",IDC_STATIC,7,90,40,8
+    EDITTEXT        IDC_CE_SUFFIX,95,88,148,14,ES_AUTOHSCROLL
+    LTEXT           "在 Alt 框选的矩形列块内，逐行写入「前缀 + 编号 + 后缀」。",IDC_STATIC,7,108,236,8
+    DEFPUSHBUTTON   "确定",IDOK,140,118,50,14
+    PUSHBUTTON      "取消",IDCANCEL,194,118,50,14
 END
 
 IDD_MODIFYLINES DIALOGEX 0, 0, 260, 129
@@ -1576,12 +1616,15 @@ END
 STRINGTABLE
 BEGIN
     IDS_RUNTOOLS_PRESET_RUN "运行当前程序"
-    IDS_RUNTOOLS_PRESET_LABEL "预设:"
-    IDS_RUNTOOLS_MACRO_LABEL "插入变量:"
-    IDS_RUNTOOLS_INSERT_MACRO "插入变量"
-    IDS_RUNTOOLS_PREVIEW_LABEL "运行预览:"
-    IDS_RUNTOOLS_COMMANDLINE_LABEL "命令行:"
+    IDS_RUNTOOLS_PRESET_LABEL "预设："
+    IDS_RUNTOOLS_MACRO_LABEL "插入文本："
+    IDS_RUNTOOLS_INSERT_MACRO "插入"
+    IDS_RUNTOOLS_PREVIEW_LABEL "运行目录:"
+    IDS_RUNTOOLS_COMMANDLINE_LABEL "运行预览:"
     IDS_RUNTOOLS_DIRECTORY_LABEL "起始目录:"
+    IDS_RUNTOOLS_TEST       "测试(&T)"
+    IDS_RUNTOOLS_STARTED    "已启动外部程序。"
+
 END
 
 STRINGTABLE

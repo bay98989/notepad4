@@ -6092,26 +6092,34 @@ void EditColumnEdit(int iStart, int iStep, int iPad, bool bHex,
 	const Sci_Line iLineTop    = SciCall_LineFromPosition(iSelStart < iSelEnd ? iSelStart : iSelEnd);
 	const Sci_Line iLineBottom = SciCall_LineFromPosition(iSelStart > iSelEnd ? iSelStart : iSelEnd);
 
-	const Sci_Position colA = iSelStart - SciCall_PositionFromLine(iLineTop);
-	const Sci_Position colB = iSelEnd   - SciCall_PositionFromLine(iLineBottom);
+	// 用 Scintilla 的“列坐标”（自动展开 Tab）而不是字节偏移，
+	// 否则在含 Tab 缩进的行上矩形块会整体错位。
+	const Sci_Position colA = SciCall_GetColumn(iSelStart);
+	const Sci_Position colB = SciCall_GetColumn(iSelEnd);
 	const Sci_Position colStart = colA < colB ? colA : colB;
 	const Sci_Position colEnd   = colA > colB ? colA : colB;
 
 	BeginWaitCursor();
 	SciCall_BeginUndoAction();
 	for (Sci_Line iLine = iLineTop; iLine <= iLineBottom; iLine++) {
-		const Sci_Position iLineStart = SciCall_PositionFromLine(iLine);
 		const Sci_Position iLineEnd   = SciCall_GetLineEndPosition(iLine);
-		Sci_Position s = iLineStart + colStart;
-		Sci_Position e = iLineStart + colEnd;
+		Sci_Position s = SciCall_FindColumn(iLine, colStart);
+		Sci_Position e = SciCall_FindColumn(iLine, colEnd);
 		if (s > iLineEnd) s = iLineEnd;
 		if (e > iLineEnd) e = iLineEnd;
+		if (e < s) e = s;
 
 		WCHAR wchNum[64];
-		const int iValue = iStart + (int)(iLine - iLineTop) * iStep;
-		const int iWidth = iPad > 0 ? iPad : 1;
-		if (bHex) wsprintfW(wchNum, L"%0*X", iWidth, iValue);
-		else      wsprintfW(wchNum, L"%0*d", iWidth, iValue);
+		// 补零位数必须限幅：%0*d 会按宽度写满缓冲区，位数过大（例如 200）会写爆 wchNum
+		const int iWidth = clamp<int>(iPad, 1, 32);
+		// 编号用 64 位计算，避免行数 * 增量把 int 溢成 UB；再夹回 int 范围
+		const long long iValue64 = static_cast<long long>(iStart) + static_cast<long long>(iLine - iLineTop) * iStep;
+		const int iValue = static_cast<int>(clamp<long long>(iValue64, INT_MIN, INT_MAX));
+		// 注意：wsprintf 不支持 '*' 宽度，L"%0*d" 会被当字面量原样输出成 "*d"。
+		// 这里先拼出"%0Nd"再格式化，避免依赖 CRT 的 swprintf。
+		WCHAR wchFmt[16];
+		wsprintfW(wchFmt, bHex ? L"%%0%dX" : L"%%0%dd", iWidth);
+		wsprintfW(wchNum, wchFmt, iValue);
 
 		WCHAR wchLine[512];
 		if (iStart >= 0)
@@ -6119,7 +6127,7 @@ void EditColumnEdit(int iStart, int iStep, int iPad, bool bHex,
 		else
 			wsprintfW(wchLine, L"%s%s", pwszPrefix ? pwszPrefix : L"", pwszSuffix ? pwszSuffix : L"");
 
-		char mszLine[1024];
+		char mszLine[2048];
 		const int cb = WideCharToMultiByte(cpEdit, 0, wchLine, -1, mszLine, (int)COUNTOF(mszLine), nullptr, nullptr);
 		if (cb <= 0)
 			continue;
@@ -6213,8 +6221,10 @@ void EditMoveRectBlock(HWND hwnd, bool bRight) noexcept {
 	const Sci_Line iLineTop    = SciCall_LineFromPosition(iSelStart < iSelEnd ? iSelStart : iSelEnd);
 	const Sci_Line iLineBottom = SciCall_LineFromPosition(iSelStart > iSelEnd ? iSelStart : iSelEnd);
 
-	const Sci_Position colA = iSelStart - SciCall_PositionFromLine(iLineTop);
-	const Sci_Position colB = iSelEnd   - SciCall_PositionFromLine(iLineBottom);
+	// 用 Scintilla 的“列坐标”（自动展开 Tab）而不是字节偏移，
+	// 否则在含 Tab 缩进的行上矩形块会整体错位。
+	const Sci_Position colA = SciCall_GetColumn(iSelStart);
+	const Sci_Position colB = SciCall_GetColumn(iSelEnd);
 	const Sci_Position colStart = colA < colB ? colA : colB;
 	const Sci_Position colEnd   = colA > colB ? colA : colB;
 
@@ -6223,15 +6233,14 @@ void EditMoveRectBlock(HWND hwnd, bool bRight) noexcept {
 	for (Sci_Line iLine = iLineTop; iLine <= iLineBottom; iLine++) {
 		const Sci_Position iLineStart = SciCall_PositionFromLine(iLine);
 		const Sci_Position iLineEnd   = SciCall_GetLineEndPosition(iLine);
-		Sci_Position pos = iLineStart + colStart;
+		Sci_Position pos = SciCall_FindColumn(iLine, colStart);
 		if (pos > iLineEnd) pos = iLineEnd;
 
 		if (bRight) {
 			SciCall_InsertText(pos, " ");
-		} else {
-			const Sci_Position delPos = pos - 1;
-			if (colStart > 0 && delPos >= iLineStart && delPos < iLineEnd)
-				SciCall_DeleteRange(delPos, 1);
+		} else if (pos > iLineStart) {
+			// 只删掉块左边界左边的一个字符；块已经在行首时不删，避免连上一行的换行符一起删掉
+			SciCall_DeleteRange(pos - 1, 1);
 		}
 	}
 	SciCall_EndUndoAction();
@@ -6239,8 +6248,9 @@ void EditMoveRectBlock(HWND hwnd, bool bRight) noexcept {
 
 	// 恢复矩形选区
 	const Sci_Position colStartNew = bRight ? colStart + 1 : (colStart > 0 ? colStart - 1 : colStart);
-	const Sci_Position anchorPos = SciCall_PositionFromLine(iLineTop)    + colStartNew;
-	const Sci_Position caretPos  = SciCall_PositionFromLine(iLineBottom) + colStartNew + (colEnd - colStart);
+	const Sci_Position colEndNew   = colStartNew + (colEnd - colStart);
+	const Sci_Position anchorPos = SciCall_FindColumn(iLineTop, colStartNew);
+	const Sci_Position caretPos  = SciCall_FindColumn(iLineBottom, colEndNew);
 	SciCall_SetSelectionMode(SC_SEL_RECTANGLE);
 	SciCall_SetRectangularSelectionAnchor(anchorPos);
 	SciCall_SetRectangularSelectionCaret(caretPos);
@@ -6297,7 +6307,7 @@ static void EditColumnInsertText(HWND hwnd, bool bBefore) noexcept {
 		return;
 
 	const UINT cpEdit = SciCall_GetCodePage();
-	char mszText[512];
+	char mszText[1024];
 	if (WideCharToMultiByte(cpEdit, 0, params.szText, -1, mszText, (int)COUNTOF(mszText), nullptr, nullptr) <= 0)
 		return;
 	const int cbText = (int)strlen(mszText);
@@ -6306,17 +6316,18 @@ static void EditColumnInsertText(HWND hwnd, bool bBefore) noexcept {
 	const Sci_Position iSelEnd   = SciCall_GetSelectionEnd();
 	const Sci_Line iLineTop    = SciCall_LineFromPosition(iSelStart < iSelEnd ? iSelStart : iSelEnd);
 	const Sci_Line iLineBottom = SciCall_LineFromPosition(iSelStart > iSelEnd ? iSelStart : iSelEnd);
-	const Sci_Position colA = iSelStart - SciCall_PositionFromLine(iLineTop);
-	const Sci_Position colB = iSelEnd   - SciCall_PositionFromLine(iLineBottom);
+	// 用 Scintilla 的“列坐标”（自动展开 Tab）而不是字节偏移，
+	// 否则在含 Tab 缩进的行上矩形块会整体错位。
+	const Sci_Position colA = SciCall_GetColumn(iSelStart);
+	const Sci_Position colB = SciCall_GetColumn(iSelEnd);
 	const Sci_Position colStart = colA < colB ? colA : colB;
 	const Sci_Position colEnd   = colA > colB ? colA : colB;
 
 	BeginWaitCursor();
 	SciCall_BeginUndoAction();
 	for (Sci_Line iLine = iLineTop; iLine <= iLineBottom; iLine++) {
-		const Sci_Position iLineStart = SciCall_PositionFromLine(iLine);
 		const Sci_Position iLineEnd   = SciCall_GetLineEndPosition(iLine);
-		Sci_Position pos = iLineStart + (bBefore ? colStart : colEnd);
+		Sci_Position pos = SciCall_FindColumn(iLine, bBefore ? colStart : colEnd);
 		if (pos > iLineEnd) pos = iLineEnd;
 		SciCall_InsertText(pos, mszText);
 	}
@@ -6325,8 +6336,8 @@ static void EditColumnInsertText(HWND hwnd, bool bBefore) noexcept {
 
 	// 列前插入：整块右移 cbText 字节；列后插入：选区不变
 	const Sci_Position offset = bBefore ? cbText : 0;
-	const Sci_Position anchorPos = SciCall_PositionFromLine(iLineTop)    + colStart + offset;
-	const Sci_Position caretPos  = SciCall_PositionFromLine(iLineBottom) + colEnd   + offset;
+	const Sci_Position anchorPos = SciCall_FindColumn(iLineTop, colStart) + offset;
+	const Sci_Position caretPos  = SciCall_FindColumn(iLineBottom, colEnd) + offset;
 	SciCall_SetSelectionMode(SC_SEL_RECTANGLE);
 	SciCall_SetRectangularSelectionAnchor(anchorPos);
 	SciCall_SetRectangularSelectionCaret(caretPos);

@@ -3330,6 +3330,11 @@ static bool CreateFunctionListPanel(HWND hwnd) noexcept {
 		hwndFunctionListLanguage = nullptr;
 		hwndFunctionListClose = nullptr;
 		hwndFunctionListItems = nullptr;
+		// 这一分支在字体创建成功之后才走到，必须一并释放，否则 GDI 字体泄漏
+		if (hFunctionListFont != nullptr) {
+			DeleteObject(hFunctionListFont);
+			hFunctionListFont = nullptr;
+		}
 		MsgBoxWarn(MB_OK, IDS_FUNCTION_LIST_FAILED);
 		return false;
 	}
@@ -3370,6 +3375,9 @@ static void RefreshFunctionListPanel() noexcept {
 
 	uint8_t styleFlags[256];
 	Style_GetFunctionStyleFlags(pLexCurrent, styleFlags);
+	// 文档缓冲区不一定是 UTF-8（可能处于 ANSI 代码页，如 GBK），
+	// 与其它代码保持一致，用 SCI_GETCODEPAGE 返回的代码页解码函数名。
+	const UINT cpEdit = SciCall_GetCodePage();
 	const size_t textOffset = static_cast<size_t>(length) + 1;
 	size_t count = 0;
 	for (Sci_Position position = 0; position < length; ) {
@@ -3412,7 +3420,7 @@ static void RefreshFunctionListPanel() noexcept {
 				if (tokenLength < 512) {
 					char name[512];
 					memcpy(name, styledText + textOffset + static_cast<size_t>(start), static_cast<size_t>(tokenLength));
-					const int cchName = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, static_cast<int>(tokenLength), entries[index].name, COUNTOF(entries[index].name) - 1);
+					const int cchName = MultiByteToWideChar(cpEdit, 0, name, static_cast<int>(tokenLength), entries[index].name, COUNTOF(entries[index].name) - 1);
 					if (cchName > 0) {
 						entries[index].name[cchName] = L'\0';
 						entries[index].line = static_cast<int>(SciCall_LineFromPosition(start));

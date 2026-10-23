@@ -38,6 +38,9 @@ bool	GetDirectory(HWND hwndParent, int iTitle, LPWSTR pszFolder, LPCWSTR pszBase
 INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam) noexcept;
 void	RunDlg(HWND hwnd, LPCWSTR lpstrDefault) noexcept;
 
+//! 外部工具条数（与菜单 IDM_RUN_TOOL_1..10 对应）
+constexpr size_t RunToolSlotCount = 10;
+
 struct RunToolConfig {
 	WCHAR menuText[64];
 	WCHAR command[MAX_PATH];
