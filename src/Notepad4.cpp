@@ -2740,14 +2740,17 @@ static void UpdateRunToolsMenu() noexcept {
 	if (menu == nullptr) {
 		return;
 	}
+	WCHAR fallbackFmt[32];
+	GetString(IDS_RUNTOOL_MENU_FALLBACK, fallbackFmt, COUNTOF(fallbackFmt));
 	for (size_t i = 0; i < RunToolsCount; i++) {
 		WCHAR fallback[32];
-		wsprintf(fallback, L"Tool %u", static_cast<unsigned>(i + 1));
+		wsprintf(fallback, fallbackFmt, static_cast<unsigned>(i + 1));
 		MENUITEMINFO mii{};
 		mii.cbSize = sizeof(mii);
 		mii.fMask = MIIM_STRING | MIIM_STATE;
 		mii.dwTypeData = StrNotEmpty(runTools[i].menuText) ? runTools[i].menuText : fallback;
-		mii.fState = (StrNotEmpty(runTools[i].menuText) && StrNotEmpty(runTools[i].command)) ? MFS_ENABLED : MFS_GRAYED;
+		// 只要配置了命令即可运行；菜单文本为空时显示 fallback 名称
+		mii.fState = StrNotEmpty(runTools[i].command) ? MFS_ENABLED : MFS_GRAYED;
 		SetMenuItemInfo(menu, IDM_RUN_TOOL_1 + static_cast<UINT>(i), FALSE, &mii);
 	}
 }
@@ -3605,9 +3608,12 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 
 	case IDT_FILE_LAUNCH:  ///工具栏上运行
 		{
+			if (StrIsEmpty(runTools[0].command)) {
+				MsgBoxWarn(MB_OK, IDS_RUNTOOLS_TOOL_NOT_CONFIGURED);
+				break;
+			}
 			//IDM_RUN_TOOL_1；
 			return MsgCommand(hwnd, IDM_RUN_TOOL_1, 0);
-			break;
 		}
 	case IDM_FILE_LAUNCH: {
 		if (StrIsEmpty(szCurFile)) {
@@ -3659,6 +3665,7 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 				MsgBoxLastError(MB_OK, IDS_WRITEINI_FAIL);
 			}
 			UpdateRunToolsMenu();
+			UpdateToolbar();
 		}
 		break;
 
@@ -7322,7 +7329,7 @@ void UpdateToolbar() noexcept {
 	HWND hwnd = hwndToolbar;
 	const bool hasPath = StrNotEmpty(szCurFile);
 	EnableTool(IDT_FILE_ADDTOFAV, hasPath);
-	EnableTool(IDT_FILE_LAUNCH, hasPath);
+	EnableTool(IDT_FILE_LAUNCH, hasPath && StrNotEmpty(runTools[0].command));
 
 	EnableTool(IDT_FILE_SAVE, IsDocumentModified());
 	EnableTool(IDT_EDIT_UNDO, SciCall_CanUndo());
