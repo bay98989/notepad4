@@ -553,6 +553,8 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 		ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), text);
 		GetString(IDS_RUNTOOLS_PRESET_RUN, text, COUNTOF(text));
 		ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), text);
+		GetString(IDS_RUNTOOLS_PRESET_CMD, text, COUNTOF(text));
+		ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), text);
 		ComboBox_SetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), 0);
 		static constexpr LPCWSTR macros[] = {
 			L"$(FilePath)", L"$(FileName)", L"$(FileNameNoExt)", L"$(FileDir)",
@@ -604,13 +606,21 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 					lstrcpy(tool.workingDirectory, L"$(FileDir)");
 					RunToolsSetCurrent(hwnd, tool);
 					break;
-				case 2:
-					GetString(IDS_RUNTOOLS_PRESET_RUN, presetName, COUNTOF(presetName));
-					lstrcpy(tool.menuText, presetName);
-					lstrcpy(tool.command, L"$(FileDir)\\$(FileNameNoExt).exe");
-					lstrcpy(tool.workingDirectory, L"$(FileDir)");
-					RunToolsSetCurrent(hwnd, tool);
-					break;
+			case 2:
+				GetString(IDS_RUNTOOLS_PRESET_RUN, presetName, COUNTOF(presetName));
+				lstrcpy(tool.menuText, presetName);
+				lstrcpy(tool.command, L"$(FileDir)\\$(FileNameNoExt).exe");
+				lstrcpy(tool.workingDirectory, L"$(FileDir)");
+				RunToolsSetCurrent(hwnd, tool);
+				break;
+			case 3:
+				GetString(IDS_RUNTOOLS_PRESET_CMD, presetName, COUNTOF(presetName));
+				lstrcpy(tool.menuText, presetName);
+				lstrcpy(tool.command, L"cmd.exe");
+				lstrcpy(tool.arguments, L"/k");
+				lstrcpy(tool.workingDirectory, L"$(FileDir)");
+				RunToolsSetCurrent(hwnd, tool);
+				break;
 				}
 				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
 				RunToolsUpdatePreview(hwnd);

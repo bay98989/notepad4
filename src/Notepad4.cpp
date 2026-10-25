@@ -2833,7 +2833,8 @@ static bool ExpandRunToolCommand(const RunToolConfig &tool, ExpandedRunToolComma
 		lstrcpyn(directory, fileDir, COUNTOF(directory));
 	}
 	const size_t commandLength = static_cast<size_t>(lstrlen(command));
-	if (commandLength >= 2 && command[0] == L'"' && command[commandLength - 1] == L'"') {
+	const bool wasQuoted = commandLength >= 2 && command[0] == L'"' && command[commandLength - 1] == L'"';
+	if (wasQuoted) {
 		memmove(command, command + 1, (commandLength - 2) * sizeof(WCHAR));
 		command[commandLength - 2] = L'\0';
 	}
@@ -2855,10 +2856,17 @@ static bool ExpandRunToolCommand(const RunToolConfig &tool, ExpandedRunToolComma
 
 	lstrcpy(expanded.executable, expandedCommand);
 	lstrcpy(expanded.directory, expandedDirectory);
+	// 原本带引号，或不含空格（裸可执行路径）时自动套引号，兼容旧配置；
+	// 含空格且不带引号视为"命令 + 内嵌参数"，按原样拼接（与 Notepad++ 行为一致），
+	// 否则 "cmd.exe /c x" 会被整体解析成一个带空格的文件名而启动失败
+	const bool wrapInQuotes = wasQuoted || wcschr(expandedCommand, L' ') == nullptr;
 	size_t commandLineLength = 0;
-	if (!AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, L"\"", 1)
-		|| !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, expandedCommand, commandLengthExpanded - 1)
-		|| !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, L"\"", 1)
+	if ((wrapInQuotes
+		&& (!AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, L"\"", 1)
+			|| !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, expandedCommand, commandLengthExpanded - 1)
+			|| !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, L"\"", 1)))
+		|| (!wrapInQuotes
+			&& !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, expandedCommand, commandLengthExpanded - 1))
 		|| (StrNotEmpty(expandedArguments)
 			&& (!AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, L" ", 1)
 				|| !AppendRunToolText(expanded.commandLine, COUNTOF(expanded.commandLine), commandLineLength, expandedArguments, argumentsLengthExpanded - 1)))) {
@@ -2906,7 +2914,9 @@ bool RunConfiguredTool(HWND hwnd, const RunToolConfig &tool) noexcept {
 	STARTUPINFO si{};
 	si.cb = sizeof(si);
 	PROCESS_INFORMATION pi{};
-	if (!CreateProcess(expanded.executable, expanded.commandLine, nullptr, nullptr, FALSE, 0, nullptr,
+	// lpApplicationName 传 nullptr，由系统解析整条命令行，
+	// 使命令框支持内嵌参数（如 cmd.exe /c xxx、python "$(FilePath)"）
+	if (!CreateProcess(nullptr, expanded.commandLine, nullptr, nullptr, FALSE, 0, nullptr,
 		StrNotEmpty(expanded.directory) ? expanded.directory : nullptr, &si, &pi)) {
 		MsgBoxLastError(MB_OK, IDS_ERR_RUNTOOL, expanded.executable);
 		return false;
