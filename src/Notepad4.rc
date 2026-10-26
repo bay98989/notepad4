@@ -146,6 +146,14 @@ BEGIN
         MENUITEM "删除(&D)\tDelete",              IDM_EDIT_DELETE
         MENUITEM "全选(&A)\tCtrl+A",              IDM_EDIT_SELECTALL
         MENUITEM SEPARATOR
+        POPUP "选中文本(&S)"
+	BEGIN
+		MENUITEM "切换行注释(&O)\tCtrl+/",		IDM_EDIT_LINECOMMENT
+		MENUITEM "切换块注释(&C)\tCtrl+Q",			IDM_EDIT_STREAMCOMMENT
+		MENUITEM "增加缩进(&I)\tTab",			IDM_EDIT_INDENT
+		MENUITEM "减少缩进(&U)\tShift+Tab",		IDM_EDIT_UNINDENT
+	END
+	//MENUITEM SEPARATOR
         POPUP "转换(&V)"
         BEGIN
             MENUITEM "大写(&U)\tCtrl+Shift+U",        IDM_EDIT_CONVERTUPPERCASE
@@ -160,6 +168,7 @@ BEGIN
             MENUITEM "转十六进制(&H)\tCtrl+Alt+H",       IDM_EDIT_NUM2HEX
             MENUITEM "转十进制(&D)\tCtrl+Alt+D",        IDM_EDIT_NUM2DEC
         END
+        MENUITEM SEPARATOR
         POPUP "插入(&N)"
         BEGIN
             MENUITEM "单词自动完成(&W)\tAlt+/",           IDM_EDIT_COMPLETEWORD
@@ -172,11 +181,11 @@ BEGIN
         MENUITEM SEPARATOR
         POPUP "列编辑"
         BEGIN
-            MENUITEM "添加/取消行注释(&O)\tCtrl+/",        IDM_EDIT_LINECOMMENT
-            MENUITEM "添加/取消块注释(&C)\tCtrl+Q",        IDM_EDIT_STREAMCOMMENT
-            MENUITEM "增加缩进(&I)\tTab",               IDM_EDIT_INDENT
-            MENUITEM "减少缩进(&U)\tShift+Tab",         IDM_EDIT_UNINDENT
-            MENUITEM SEPARATOR
+        //    MENUITEM "添加/取消行注释(&O)\tCtrl+/",        IDM_EDIT_LINECOMMENT
+         //   MENUITEM "添加/取消块注释(&C)\tCtrl+Q",        IDM_EDIT_STREAMCOMMENT
+          //  MENUITEM "增加缩进(&I)\tTab",               IDM_EDIT_INDENT
+          //  MENUITEM "减少缩进(&U)\tShift+Tab",         IDM_EDIT_UNINDENT
+        //    MENUITEM SEPARATOR
             MENUITEM "列块前面插入文本(&F)...",             IDM_EDIT_COLUMN_INSERT_BEFORE
             MENUITEM "列块后面插入文本(&A)...",             IDM_EDIT_COLUMN_INSERT_AFTER
             MENUITEM "列块左移(&L)",                    IDM_EDIT_MOVE_BLOCK_LEFT
@@ -423,6 +432,14 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "全选(&A)",                      IDM_EDIT_SELECTALL
         MENUITEM SEPARATOR
+        POPUP "选中文本(&S)"
+	BEGIN
+                MENUITEM "切换行注释(&O)\tCtrl+/",		IDM_EDIT_LINECOMMENT
+                MENUITEM "切换块注释(&C)\tCtrl+Q",			IDM_EDIT_STREAMCOMMENT
+		MENUITEM "增加缩进(&I)\tTab",			IDM_EDIT_INDENT
+                MENUITEM "减少缩进(&U)\tShift+Tab",		IDM_EDIT_UNINDENT
+	END
+//	MENUITEM SEPARATOR
         POPUP "转换(&V)"
         BEGIN
             MENUITEM "大写(&U)\tCtrl+Shift+U",        IDM_EDIT_CONVERTUPPERCASE
@@ -437,6 +454,7 @@ BEGIN
             MENUITEM "转十六进制(&H)\tCtrl+Alt+H",       IDM_EDIT_NUM2HEX
             MENUITEM "转十进制(&D)\tCtrl+Alt+D",        IDM_EDIT_NUM2DEC
         END
+        MENUITEM SEPARATOR
         POPUP "插入时间(&N)"
         BEGIN
             MENUITEM "当前日期(&D)",                    IDM_EDIT_INSERT_LOC_DATE
@@ -447,11 +465,11 @@ BEGIN
         MENUITEM SEPARATOR
         POPUP "列编辑(&C)..."
         BEGIN
-            MENUITEM "添加/取消行注释(&O)\tCtrl+/",        IDM_EDIT_LINECOMMENT
-            MENUITEM "添加/取消列块注释(&C)\tCtrl+Q",       IDM_EDIT_STREAMCOMMENT
-            MENUITEM "增加缩进(&I)\tTab",               IDM_EDIT_INDENT
-            MENUITEM "减少缩进(&U)\tShift+Tab",         IDM_EDIT_UNINDENT
-            MENUITEM SEPARATOR
+       //     MENUITEM "添加/取消行注释(&O)\tCtrl+/",        IDM_EDIT_LINECOMMENT
+       //     MENUITEM "添加/取消列块注释(&C)\tCtrl+Q",       IDM_EDIT_STREAMCOMMENT
+       //     MENUITEM "增加缩进(&I)\tTab",               IDM_EDIT_INDENT
+       //     MENUITEM "减少缩进(&U)\tShift+Tab",         IDM_EDIT_UNINDENT
+      //      MENUITEM SEPARATOR
             MENUITEM "列块前面插入文本(&F)...",             IDM_EDIT_COLUMN_INSERT_BEFORE
             MENUITEM "列块后面插入文本(&A)...",             IDM_EDIT_COLUMN_INSERT_AFTER
             MENUITEM "列块左移(&L)",                    IDM_EDIT_MOVE_BLOCK_LEFT
@@ -1757,18 +1775,18 @@ BEGIN
     IDS_SELRECT_RELOAD_ENCODING "选择重新载入文件使用的编码: "
     IDS_SELRECT_DEFAULT_ENCODING "选择新文件的默认编码: "
     IDS_ENCODINGGROUP_UNICODE "Unicode"
-    IDS_ENCODINGGROUP_WESTERNEURO "西欧"
-    IDS_ENCODINGGROUP_ARABIC "阿拉伯文"
-    IDS_ENCODINGGROUP_NORTHERNEURO "波罗的海和北欧"
-    IDS_ENCODINGGROUP_CENTRALEURO "中欧和东欧"
+ //   IDS_ENCODINGGROUP_WESTERNEURO "西欧"
+ //   IDS_ENCODINGGROUP_ARABIC "阿拉伯文"
+//    IDS_ENCODINGGROUP_NORTHERNEURO "波罗的海和北欧"
+//    IDS_ENCODINGGROUP_CENTRALEURO "中欧和东欧"
     IDS_ENCODINGGROUP_CHINESE "中文"
-    IDS_ENCODINGGROUP_CYRILLIC "西里尔语"
-    IDS_ENCODINGGROUP_GREEK "希腊语"
-    IDS_ENCODINGGROUP_HEBREW "希伯来语"
-    IDS_ENCODINGGROUP_JAPANESE "日语"
-    IDS_ENCODINGGROUP_KOREAN "韩语/朝鲜语"
-    IDS_ENCODINGGROUP_SOUTHEURO "南欧"
-    IDS_ENCODINGGROUP_SOUTHASIA "东南亚"
+//    IDS_ENCODINGGROUP_CYRILLIC "西里尔语"
+ //   IDS_ENCODINGGROUP_GREEK "希腊语"
+ //   IDS_ENCODINGGROUP_HEBREW "希伯来语"
+  //  IDS_ENCODINGGROUP_JAPANESE "日语"
+ //   IDS_ENCODINGGROUP_KOREAN "韩语/朝鲜语"
+ //   IDS_ENCODINGGROUP_SOUTHEURO "南欧"
+ //   IDS_ENCODINGGROUP_SOUTHASIA "东南亚"
 END
 
 STRINGTABLE
