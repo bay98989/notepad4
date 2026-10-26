@@ -6206,6 +6206,21 @@ void EditColumnEditDlg(HWND hwnd) noexcept {
 
 //=============================================================================
 //
+// EditVirtualSpaceToColumns() -- 把矩形选区端点的虚拟空格（像素）折算成列数
+//
+static Sci_Position EditVirtualSpaceToColumns(Sci_Position pos, Sci_Position virtualSpace) noexcept {
+	if (virtualSpace <= 0) {
+		return 0;
+	}
+	const int iSpaceWidth = SciCall_TextWidth(SciCall_GetStyleIndexAt(pos), " ");
+	if (iSpaceWidth <= 0) {
+		return 0;
+	}
+	return (virtualSpace + iSpaceWidth / 2) / iSpaceWidth;
+}
+
+//=============================================================================
+//
 // EditMoveRectBlock() -- 矩形块整体左移/右移一列
 //   bRight = true  右移：在矩形每行左边界前插入一个空格
 //   bRight = false 左移：抹掉每行左边界左侧的一列
@@ -6215,10 +6230,9 @@ void EditColumnEditDlg(HWND hwnd) noexcept {
 //   - 块在该行为空（行没长到块左边界）时跳过，避免误删行尾字符或多塞空格；
 //   - 删除以整字符为单位，不会切开多字节字符（UTF-8/GBK）；
 //   - 选区按“原 anchor/caret + 各自所在行的实际字节增量”还原，
-//     既不会被短行截断，也不会翻转原来的拖动方向。
-//
-// 注：矩形选区允许拖到行尾之外（虚拟空格，SCVS_RECTANGULARSELECTION），
-//     这部分像素宽度未计入列坐标，块左边界落在虚拟空格里时按行尾处理。
+//     既不会被短行截断，也不会翻转原来的拖动方向；
+//   - 端点上的“虚拟空格”（Alt+拖动越过行尾，SCVS_RECTANGULARSELECTION）原样保留，
+//     否则每移动一次选区就在行尾处缩掉一截。
 //
 void EditMoveRectBlock(HWND hwnd, bool bRight) noexcept {
 	if (!SciCall_IsRectangularSelection()) {
@@ -6233,14 +6247,17 @@ void EditMoveRectBlock(HWND hwnd, bool bRight) noexcept {
 	// 用矩形选区专用接口取两个角，才能保留原来的拖动方向
 	const Sci_Position iAnchor = SciCall_GetRectangularSelectionAnchor();
 	const Sci_Position iCaret  = SciCall_GetRectangularSelectionCaret();
+	// 端点越过行尾时，多出来的部分存在“虚拟空格”里，位置本身只到行尾
+	const Sci_Position iAnchorVS = SciCall_GetRectangularSelectionAnchorVirtualSpace();
+	const Sci_Position iCaretVS  = SciCall_GetRectangularSelectionCaretVirtualSpace();
 	const Sci_Line iLineAnchor = SciCall_LineFromPosition(iAnchor);
 	const Sci_Line iLineCaret  = SciCall_LineFromPosition(iCaret);
 	const Sci_Line iLineTop    = (iLineAnchor < iLineCaret) ? iLineAnchor : iLineCaret;
 	const Sci_Line iLineBottom = (iLineAnchor < iLineCaret) ? iLineCaret : iLineAnchor;
 
 	// 列坐标而不是字节偏移，否则在含 Tab 缩进的行上矩形块会整体错位
-	const Sci_Position colAnchor = SciCall_GetColumn(iAnchor);
-	const Sci_Position colCaret  = SciCall_GetColumn(iCaret);
+	const Sci_Position colAnchor = SciCall_GetColumn(iAnchor) + EditVirtualSpaceToColumns(iAnchor, iAnchorVS);
+	const Sci_Position colCaret  = SciCall_GetColumn(iCaret) + EditVirtualSpaceToColumns(iCaret, iCaretVS);
 	const Sci_Position colStart  = (colAnchor < colCaret) ? colAnchor : colCaret;
 
 	const int tabWidth = (SciCall_GetTabWidth() > 0) ? SciCall_GetTabWidth() : 8;
@@ -6309,6 +6326,14 @@ void EditMoveRectBlock(HWND hwnd, bool bRight) noexcept {
 	SciCall_SetSelectionMode(SC_SEL_RECTANGLE);
 	SciCall_SetRectangularSelectionAnchor(iAnchor + anchorDelta);
 	SciCall_SetRectangularSelectionCaret(iCaret + caretDelta);
+	// 设置位置会把端点的虚拟空格清零，这里补回去，
+	// 否则拖到行尾之外的矩形每移动一次就在行尾处缩掉一截
+	if (iAnchorVS > 0) {
+		SciCall_SetRectangularSelectionAnchorVirtualSpace(iAnchorVS);
+	}
+	if (iCaretVS > 0) {
+		SciCall_SetRectangularSelectionCaretVirtualSpace(iCaretVS);
+	}
 }
 
 //=============================================================================

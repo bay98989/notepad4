@@ -526,6 +526,22 @@ inline Sci_Position SciCall_GetRectangularSelectionAnchor() noexcept {
 	return SciCall(SCI_GETRECTANGULARSELECTIONANCHOR, 0, 0);
 }
 
+inline void SciCall_SetRectangularSelectionCaretVirtualSpace(Sci_Position space) noexcept {
+	SciCall(SCI_SETRECTANGULARSELECTIONCARETVIRTUALSPACE, space, 0);
+}
+
+inline void SciCall_SetRectangularSelectionAnchorVirtualSpace(Sci_Position space) noexcept {
+	SciCall(SCI_SETRECTANGULARSELECTIONANCHORVIRTUALSPACE, space, 0);
+}
+
+inline Sci_Position SciCall_GetRectangularSelectionCaretVirtualSpace() noexcept {
+	return SciCall(SCI_GETRECTANGULARSELECTIONCARETVIRTUALSPACE, 0, 0);
+}
+
+inline Sci_Position SciCall_GetRectangularSelectionAnchorVirtualSpace() noexcept {
+	return SciCall(SCI_GETRECTANGULARSELECTIONANCHORVIRTUALSPACE, 0, 0);
+}
+
 inline void SciCall_SetAdditionalCaretsBlink(bool additionalCaretsBlink) noexcept {
 	SciCall(SCI_SETADDITIONALCARETSBLINK, additionalCaretsBlink, 0);
 }
