@@ -518,6 +518,14 @@ inline void SciCall_SetRectangularSelectionAnchor(Sci_Position anchor) noexcept 
 	SciCall(SCI_SETRECTANGULARSELECTIONANCHOR, anchor, 0);
 }
 
+inline Sci_Position SciCall_GetRectangularSelectionCaret() noexcept {
+	return SciCall(SCI_GETRECTANGULARSELECTIONCARET, 0, 0);
+}
+
+inline Sci_Position SciCall_GetRectangularSelectionAnchor() noexcept {
+	return SciCall(SCI_GETRECTANGULARSELECTIONANCHOR, 0, 0);
+}
+
 inline void SciCall_SetAdditionalCaretsBlink(bool additionalCaretsBlink) noexcept {
 	SciCall(SCI_SETADDITIONALCARETSBLINK, additionalCaretsBlink, 0);
 }

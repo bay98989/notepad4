@@ -6206,54 +6206,109 @@ void EditColumnEditDlg(HWND hwnd) noexcept {
 
 //=============================================================================
 //
-// EditMoveRectBlock() -- 矩形块整体左移/右移一格
+// EditMoveRectBlock() -- 矩形块整体左移/右移一列
 //   bRight = true  右移：在矩形每行左边界前插入一个空格
-//   bRight = false 左移：删除矩形每行左边界紧邻的一个字符
+//   bRight = false 左移：抹掉每行左边界左侧的一列
+//                       （普通字符按整字符删除，Tab 按 1 列收窄，不会整级跳动）
+//
+// 全程使用 Scintilla 的“列坐标”（自动展开 Tab），并保证每行位移量严格为 1 列：
+//   - 块在该行为空（行没长到块左边界）时跳过，避免误删行尾字符或多塞空格；
+//   - 删除以整字符为单位，不会切开多字节字符（UTF-8/GBK）；
+//   - 选区按“原 anchor/caret + 各自所在行的实际字节增量”还原，
+//     既不会被短行截断，也不会翻转原来的拖动方向。
+//
+// 注：矩形选区允许拖到行尾之外（虚拟空格，SCVS_RECTANGULARSELECTION），
+//     这部分像素宽度未计入列坐标，块左边界落在虚拟空格里时按行尾处理。
 //
 void EditMoveRectBlock(HWND hwnd, bool bRight) noexcept {
 	if (!SciCall_IsRectangularSelection()) {
 		MessageBoxW(hwnd, L"请先用 Alt+鼠标 框选矩形列块。", L"矩形块移动", MB_ICONINFORMATION);
 		return;
 	}
+	if (SciCall_GetSelectionMode() == SC_SEL_THIN) {
+		MessageBoxW(hwnd, L"细长选区（Thin）不支持列块移动，请改用矩形选区。", L"矩形块移动", MB_ICONINFORMATION);
+		return;
+	}
 
-	const Sci_Position iSelStart = SciCall_GetSelectionStart();
-	const Sci_Position iSelEnd   = SciCall_GetSelectionEnd();
-	const Sci_Line iLineTop    = SciCall_LineFromPosition(iSelStart < iSelEnd ? iSelStart : iSelEnd);
-	const Sci_Line iLineBottom = SciCall_LineFromPosition(iSelStart > iSelEnd ? iSelStart : iSelEnd);
+	// 用矩形选区专用接口取两个角，才能保留原来的拖动方向
+	const Sci_Position iAnchor = SciCall_GetRectangularSelectionAnchor();
+	const Sci_Position iCaret  = SciCall_GetRectangularSelectionCaret();
+	const Sci_Line iLineAnchor = SciCall_LineFromPosition(iAnchor);
+	const Sci_Line iLineCaret  = SciCall_LineFromPosition(iCaret);
+	const Sci_Line iLineTop    = (iLineAnchor < iLineCaret) ? iLineAnchor : iLineCaret;
+	const Sci_Line iLineBottom = (iLineAnchor < iLineCaret) ? iLineCaret : iLineAnchor;
 
-	// 用 Scintilla 的“列坐标”（自动展开 Tab）而不是字节偏移，
-	// 否则在含 Tab 缩进的行上矩形块会整体错位。
-	const Sci_Position colA = SciCall_GetColumn(iSelStart);
-	const Sci_Position colB = SciCall_GetColumn(iSelEnd);
-	const Sci_Position colStart = colA < colB ? colA : colB;
-	const Sci_Position colEnd   = colA > colB ? colA : colB;
+	// 列坐标而不是字节偏移，否则在含 Tab 缩进的行上矩形块会整体错位
+	const Sci_Position colAnchor = SciCall_GetColumn(iAnchor);
+	const Sci_Position colCaret  = SciCall_GetColumn(iCaret);
+	const Sci_Position colStart  = (colAnchor < colCaret) ? colAnchor : colCaret;
+
+	const int tabWidth = (SciCall_GetTabWidth() > 0) ? SciCall_GetTabWidth() : 8;
+
+	Sci_Position cumDelta = 0;      // 当前行之前累计的字节增量
+	Sci_Position anchorDelta = 0;   // anchor 所在行及其之前的累计增量
+	Sci_Position caretDelta = 0;    // caret  所在行及其之前的累计增量
 
 	BeginWaitCursor();
 	SciCall_BeginUndoAction();
 	for (Sci_Line iLine = iLineTop; iLine <= iLineBottom; iLine++) {
 		const Sci_Position iLineStart = SciCall_PositionFromLine(iLine);
 		const Sci_Position iLineEnd   = SciCall_GetLineEndPosition(iLine);
-		Sci_Position pos = SciCall_FindColumn(iLine, colStart);
-		if (pos > iLineEnd) pos = iLineEnd;
+		// FindColumn() 内部已夹到行尾；Tab 跨越目标列时返回 Tab 自身的位置
+		const Sci_Position pos = SciCall_FindColumn(iLine, colStart);
+		Sci_Position editPos = pos;
+		Sci_Position change = 0;
 
-		if (bRight) {
-			SciCall_InsertText(pos, " ");
-		} else if (pos > iLineStart) {
-			// 只删掉块左边界左边的一个字符；块已经在行首时不删，避免连上一行的换行符一起删掉
-			SciCall_DeleteRange(pos - 1, 1);
+		// 块在这一行为空（该行没长到块左边界）→ 这一行不参与移动
+		if (SciCall_GetColumn(iLineEnd) > colStart) {
+			if (bRight) {
+				SciCall_InsertText(pos, " ");
+				change = 1;
+			} else {
+				// 找出块左边界左侧（或跨越左边界）的那个字符
+				if (SciCall_GetColumn(pos) < colStart) {
+					editPos = pos;                              // 目标列落在 Tab 内部
+				} else {
+					editPos = SciCall_PositionBefore(pos);
+				}
+				if (editPos >= iLineStart) {
+					if (SciCall_GetCharAt(editPos) == '\t') {
+						// 把 Tab 换成 (宽度-1) 个空格，使该行位移恰好 1 列
+						const Sci_Position tabCol = SciCall_GetColumn(editPos);
+						char spaces[64];
+						int nSpaces = tabWidth - static_cast<int>(tabCol % tabWidth) - 1;
+						if (nSpaces < 0) nSpaces = 0;
+						if (nSpaces > static_cast<int>(COUNTOF(spaces)) - 1)
+							nSpaces = static_cast<int>(COUNTOF(spaces)) - 1;
+						memset(spaces, ' ', static_cast<size_t>(nSpaces));
+						spaces[nSpaces] = '\0';
+						SciCall_SetTargetRange(editPos, editPos + 1);
+						SciCall_ReplaceTarget(nSpaces, spaces);
+						change = nSpaces - 1;
+					} else if (editPos < pos) {
+						// 按整字符删除，避免切断多字节字符
+						SciCall_DeleteRange(editPos, pos - editPos);
+						change = editPos - pos;
+					}
+				}
+			}
 		}
+
+		if (iLine == iLineAnchor) {
+			anchorDelta = cumDelta + (editPos <= iAnchor ? change : 0);
+		}
+		if (iLine == iLineCaret) {
+			caretDelta = cumDelta + (editPos <= iCaret ? change : 0);
+		}
+		cumDelta += change;
 	}
 	SciCall_EndUndoAction();
 	EndWaitCursor();
 
-	// 恢复矩形选区
-	const Sci_Position colStartNew = bRight ? colStart + 1 : (colStart > 0 ? colStart - 1 : colStart);
-	const Sci_Position colEndNew   = colStartNew + (colEnd - colStart);
-	const Sci_Position anchorPos = SciCall_FindColumn(iLineTop, colStartNew);
-	const Sci_Position caretPos  = SciCall_FindColumn(iLineBottom, colEndNew);
+	// 还原矩形选区：按实际字节增量修正两个角，形状与拖动方向都保持不变
 	SciCall_SetSelectionMode(SC_SEL_RECTANGLE);
-	SciCall_SetRectangularSelectionAnchor(anchorPos);
-	SciCall_SetRectangularSelectionCaret(caretPos);
+	SciCall_SetRectangularSelectionAnchor(iAnchor + anchorDelta);
+	SciCall_SetRectangularSelectionCaret(iCaret + caretDelta);
 }
 
 //=============================================================================
