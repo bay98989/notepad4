@@ -2557,6 +2557,14 @@ void MsgInitMenu(HWND hwnd, WPARAM wParam, LPARAM lParam) noexcept {
 	//EnableCmd(hmenu, IDM_EDIT_PASTE_BINARY, canPaste);
 	EnableCmd(hmenu, IDM_EDIT_SWAP, hasSel || canPaste);
 
+	// 「列编辑」子菜单全部要求矩形选区
+	const bool rectSel = SciCall_IsRectangularSelection();
+	EnableCmd(hmenu, IDM_EDIT_COLUMN_INSERT_BEFORE, rectSel);
+	EnableCmd(hmenu, IDM_EDIT_COLUMN_INSERT_AFTER, rectSel);
+	EnableCmd(hmenu, IDM_EDIT_COLUMNEDIT, rectSel);
+	EnableCmd(hmenu, IDM_EDIT_MOVE_BLOCK_LEFT, rectSel);
+	EnableCmd(hmenu, IDM_EDIT_MOVE_BLOCK_RIGHT, rectSel);
+
 	i = EditGetSelectedLineCount() > 1;
 	EnableCmd(hmenu, IDM_EDIT_SORTLINES, i);
 	EnableCmd(hmenu, IDM_EDIT_REMOVEDUPLICATELINE, i);

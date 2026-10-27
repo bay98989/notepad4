@@ -188,8 +188,8 @@ BEGIN
         //    MENUITEM SEPARATOR
             MENUITEM "列块前面插入文本(&F)...",             IDM_EDIT_COLUMN_INSERT_BEFORE
             MENUITEM "列块后面插入文本(&A)...",             IDM_EDIT_COLUMN_INSERT_AFTER
-            MENUITEM "列块左移(&L)",                    IDM_EDIT_MOVE_BLOCK_LEFT
-            MENUITEM "列块右移(&R)",                    IDM_EDIT_MOVE_BLOCK_RIGHT
+            MENUITEM "列块左移(&L)\tCtrl+Alt+Shift+Left",  IDM_EDIT_MOVE_BLOCK_LEFT
+            MENUITEM "列块右移(&R)\tCtrl+Alt+Shift+Right", IDM_EDIT_MOVE_BLOCK_RIGHT
             MENUITEM "自动增加行号(&N)...",               IDM_EDIT_COLUMNEDIT
         END
         POPUP "行编辑(&L)"
@@ -472,8 +472,8 @@ BEGIN
       //      MENUITEM SEPARATOR
             MENUITEM "列块前面插入文本(&F)...",             IDM_EDIT_COLUMN_INSERT_BEFORE
             MENUITEM "列块后面插入文本(&A)...",             IDM_EDIT_COLUMN_INSERT_AFTER
-            MENUITEM "列块左移(&L)",                    IDM_EDIT_MOVE_BLOCK_LEFT
-            MENUITEM "列块右移(&R)",                    IDM_EDIT_MOVE_BLOCK_RIGHT
+            MENUITEM "列块左移(&L)\tCtrl+Alt+Shift+Left",  IDM_EDIT_MOVE_BLOCK_LEFT
+            MENUITEM "列块右移(&R)\tCtrl+Alt+Shift+Right", IDM_EDIT_MOVE_BLOCK_RIGHT
             MENUITEM "自动增加行号(&N)...",               IDM_EDIT_COLUMNEDIT
         END
         POPUP "行编辑(&L)"
@@ -650,6 +650,7 @@ BEGIN
     VK_ESCAPE,      CMD_ESCAPE,             VIRTKEY, NOINVERT
     VK_ESCAPE,      CMD_SHIFTESC,           VIRTKEY, SHIFT, NOINVERT
     VK_INSERT,      IDM_EDIT_COPY,          VIRTKEY, CONTROL, NOINVERT
+    VK_LEFT,        IDM_EDIT_MOVE_BLOCK_LEFT, VIRTKEY, SHIFT, ALT, CONTROL, NOINVERT
     VK_F1,          IDM_HELP_ABOUT,         VIRTKEY, NOINVERT
     VK_F10,         IDM_FILE_READONLY_MODE, VIRTKEY, NOINVERT
     VK_F11,         IDM_VIEW_TOGGLE_FULLSCREEN, VIRTKEY, NOINVERT
@@ -710,6 +711,7 @@ BEGIN
     VK_OEM_PLUS,    IDM_VIEW_ZOOMIN,        VIRTKEY, CONTROL, NOINVERT
     VK_OEM_PLUS,    CMD_INCREASENUM,        VIRTKEY, CONTROL, ALT, NOINVERT
     VK_RETURN,      CMD_CTRLENTER,          VIRTKEY, SHIFT, CONTROL, NOINVERT
+    VK_RIGHT,       IDM_EDIT_MOVE_BLOCK_RIGHT, VIRTKEY, SHIFT, ALT, CONTROL, NOINVERT
     VK_SPACE,       IDM_EDIT_SELECTWORD,    VIRTKEY, CONTROL, ALT, NOINVERT
     VK_SPACE,       IDM_EDIT_SELECTLINE,    VIRTKEY, SHIFT, CONTROL, NOINVERT
     VK_SUBTRACT,    IDM_VIEW_ZOOMOUT,       VIRTKEY, CONTROL, NOINVERT
