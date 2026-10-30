@@ -80,11 +80,8 @@ static UINT uTrayIconDPI = 0;
 //#define DefaultToolbarButtons	L"22 3 0 1 27 2 0 4 18 19 0 5 6 0 7 8 9 20 0 10 11 0 12 0 24 0 13 14 0 15 16 0 17"
 #define DefaultToolbarButtons	L"1 2 0 4 18 0 5 6 0 20 7 8 9 0 10 11 0 12 0 13 14 0 25 26"
 // NOLINTBEGIN(readability-redundant-zero-initializer)
-#if NP2_ENABLE_CUSTOMIZE_TOOLBAR_LABELS
+// 非 const：运行工具按钮的图标槽位在运行时填充（CreateBars 内按实际图像列表计算）
 static TBBUTTON tbbMainWnd[] =
-#else
-static const TBBUTTON tbbMainWnd[] =
-#endif
 {
 	{0, 	0, 					0, 				 TBSTYLE_SEP, {0}, 0, 0},
 	{0, 	IDT_FILE_NEW, 		TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
@@ -152,6 +149,18 @@ static const TBBUTTON tbbMainWnd[] =
 	{58, 	IDT_VIEW_SHOWINDENTGUIDES, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
 	{59, 	IDT_VIEW_LONGLINEMARKER, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
 	{60, 	IDT_VIEW_TOGGLE_FULLSCREEN, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
+	// 运行工具 Tool 1..10：标准工具栏按钮，默认不显示，可在“自定义工具栏”里添加
+	// iBitmap 只是占位，CreateBars 会按实际图像列表填入编号徽章的槽位
+	{61, 	IDM_RUN_TOOL_1, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{62, 	IDM_RUN_TOOL_2, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{63, 	IDM_RUN_TOOL_3, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{64, 	IDM_RUN_TOOL_4, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{65, 	IDM_RUN_TOOL_5, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{66, 	IDM_RUN_TOOL_6, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{67, 	IDM_RUN_TOOL_7, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{68, 	IDM_RUN_TOOL_8, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{69, 	IDM_RUN_TOOL_9, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{70, 	IDM_RUN_TOOL_10, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 };
 // NOLINTEND(readability-redundant-zero-initializer)
 
@@ -229,6 +238,9 @@ RECT	pageSetupMargin;
 static bool bSaveBeforeRunningTools;
 static constexpr size_t RunToolsCount = 10;
 static RunToolConfig runTools[RunToolsCount];
+static HIMAGELIST g_himlToolbarImage;				// 正常图标列表
+static HIMAGELIST g_himlToolbarDisabled;			// 禁用图标列表（可能为 nullptr）
+static int g_runToolImageIndex[RunToolsCount];		// 编号徽章图标槽位，-1 = 未创建
 bool bOpenFolderWithMatepath;
 FileWatchingMode iFileWatchingMode;
 int iFileWatchingOption;
@@ -1948,6 +1960,177 @@ LRESULT MsgCreate(HWND hwnd, WPARAM wParam, LPARAM lParam) noexcept {
 
 //=============================================================================
 //
+// 运行工具（Tool 1..10）工具栏按钮
+// 把 10 个工具按钮追加到工具栏末尾：未配置命令的置灰，图标为编号徽章。
+//
+//=============================================================================
+namespace {
+
+// size×size 的 32bpp DIB（全 0 = 全透明），返回像素指针
+HBITMAP CreateRunToolDib(int size, void **bits) noexcept {
+	BITMAPINFO bmi{};
+	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bmi.bmiHeader.biWidth = size;
+	bmi.bmiHeader.biHeight = size;	// bottom-up
+	bmi.bmiHeader.biPlanes = 1;
+	bmi.bmiHeader.biBitCount = 32;
+	bmi.bmiHeader.biCompression = BI_RGB;
+	return CreateDIBSection(nullptr, &bmi, DIB_RGB_COLORS, bits, nullptr, 0);
+}
+
+// 32bpp DIB → HICON（掩码全 0，透明度由 alpha 通道决定）
+HICON RunToolIconFromDib(HBITMAP hbmp, int size) noexcept {
+	HBITMAP hmask = CreateBitmap(size, size, 1, 1, nullptr);
+	if (hmask == nullptr) {
+		DeleteObject(hbmp);
+		return nullptr;
+	}
+	HDC hdc = CreateCompatibleDC(nullptr);
+	if (hdc != nullptr) {
+		const HGDIOBJ old = SelectObject(hdc, hmask);
+		PatBlt(hdc, 0, 0, size, size, BLACKNESS);
+		SelectObject(hdc, old);
+		DeleteDC(hdc);
+	}
+	ICONINFO ii{};
+	ii.fIcon = TRUE;
+	ii.hbmMask = hmask;
+	ii.hbmColor = hbmp;
+	const HICON hicon = CreateIconIndirect(&ii);
+	DeleteObject(hmask);
+	if (hicon == nullptr) {
+		DeleteObject(hbmp);
+	}
+	return hicon;
+}
+
+} // namespace
+
+// 编号徽章图标：圆角方块 + 工具序号；disabled 版本供禁用图标列表使用
+static HICON CreateRunToolBadgeIcon(int number, int size, bool disabled) noexcept {
+	if (size <= 0) {
+		return nullptr;
+	}
+	void *bits = nullptr;
+	HBITMAP dib = CreateRunToolDib(size, &bits);
+	if (dib == nullptr || bits == nullptr) {
+		return nullptr;
+	}
+	HDC hdc = CreateCompatibleDC(nullptr);
+	if (hdc == nullptr) {
+		DeleteObject(dib);
+		return nullptr;
+	}
+	const HGDIOBJ oldBmp = SelectObject(hdc, dib);
+
+	COLORREF badge = GetSysColor(COLOR_HIGHLIGHT);
+	COLORREF text = GetSysColor(COLOR_HIGHLIGHTTEXT);
+	if (disabled) {
+		const COLORREF bg = GetSysColor(COLOR_3DFACE);
+		badge = RGB((GetRValue(badge) + GetRValue(bg)) / 2,
+					(GetGValue(badge) + GetGValue(bg)) / 2,
+					(GetBValue(badge) + GetBValue(bg)) / 2);
+		text = bg;
+	}
+
+	const HBRUSH brush = CreateSolidBrush(badge);
+	const HPEN pen = CreatePen(PS_SOLID, 1, badge);
+	const HGDIOBJ oldBrush = SelectObject(hdc, brush);
+	const HGDIOBJ oldPen = SelectObject(hdc, pen);
+	const int inset = max(1, size / 16);
+	const int radius = max(2, size / 4);
+	RoundRect(hdc, inset, inset, size - inset, size - inset, radius, radius);
+	SelectObject(hdc, oldBrush);
+	SelectObject(hdc, oldPen);
+	DeleteObject(brush);
+	DeleteObject(pen);
+
+	WCHAR digit[8];
+	wsprintf(digit, L"%d", number);
+	LOGFONT lf{};
+	lf.lfCharSet = DEFAULT_CHARSET;
+	lf.lfHeight = -(size * ((number >= 10) ? 5 : 6) / 10);
+	lf.lfWeight = FW_BOLD;
+	lf.lfQuality = NONANTIALIASED_QUALITY;
+	lstrcpy(lf.lfFaceName, L"Segoe UI");
+	const HFONT font = CreateFontIndirect(&lf);
+	const HGDIOBJ oldFont = SelectObject(hdc, font);
+	SetBkMode(hdc, TRANSPARENT);
+	SetTextColor(hdc, text);
+	RECT rc = {inset, 0, size - inset, size};
+	DrawText(hdc, digit, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+	SelectObject(hdc, oldFont);
+	DeleteObject(font);
+
+	SelectObject(hdc, oldBmp);
+	DeleteDC(hdc);
+
+	// alpha 通道：任一颜色非 0 即不透明
+	auto *px = static_cast<uint8_t *>(bits);
+	const size_t count = static_cast<size_t>(size) * size * 4;
+	for (size_t i = 0; i < count; i += 4) {
+		if (px[i] | px[i + 1] | px[i + 2]) {
+			px[i + 3] = 255;
+		}
+	}
+	return RunToolIconFromDib(dib, size);
+}
+
+// 按当前配置刷新 10 个工具按钮的启用/禁用状态（按钮不在工具栏上时无副作用）
+static void Toolbar_UpdateRunToolStates() noexcept {
+	if (hwndToolbar == nullptr) {
+		return;
+	}
+	for (size_t i = 0; i < RunToolsCount; i++) {
+		const bool enabled = StrNotEmpty(runTools[i].command);
+		// 只改启用位，保留按钮的其它状态（TB_SETSTATE 会把 TBSTATE_HIDDEN/WRAP 等一并清掉）
+		SendMessage(hwndToolbar, TB_ENABLEBUTTON, IDM_RUN_TOOL_1 + static_cast<WPARAM>(i),
+					MAKELPARAM(enabled ? 1 : 0, 0));
+	}
+}
+
+// 把 10 个编号徽章图标追加进正常/禁用两个图像列表，并把槽位写进按钮表
+static void Toolbar_PrepareRunToolIcons() noexcept {
+	if (g_himlToolbarImage == nullptr) {
+		return;
+	}
+	int cx = 0;
+	int cy = 0;
+	ImageList_GetIconSize(g_himlToolbarImage, &cx, &cy);
+	if (cy <= 0) {
+		cy = 16;
+	}
+
+	for (size_t i = 0; i < RunToolsCount; i++) {
+		if (g_runToolImageIndex[i] < 0) {
+			// 正常列表与禁用列表按同样顺序追加，保证两边槽位编号一致
+			const HICON hicon = CreateRunToolBadgeIcon(static_cast<int>(i) + 1, cy, false);
+			const int index = (hicon != nullptr) ? ImageList_ReplaceIcon(g_himlToolbarImage, -1, hicon) : -1;
+			if (hicon != nullptr) {
+				DestroyIcon(hicon);
+			}
+			if (g_himlToolbarDisabled != nullptr) {
+				const HICON hdim = CreateRunToolBadgeIcon(static_cast<int>(i) + 1, cy, true);
+				if (hdim != nullptr) {
+					ImageList_ReplaceIcon(g_himlToolbarDisabled, -1, hdim);
+					DestroyIcon(hdim);
+				}
+			}
+			g_runToolImageIndex[i] = (index >= 0) ? index : 0;
+		}
+
+		// 按钮表里的图标槽位（自定义工具栏、ToolbarButtons 配置串都从这里取）
+		for (size_t k = 1; k < COUNTOF(tbbMainWnd); k++) {
+			if (tbbMainWnd[k].idCommand == IDM_RUN_TOOL_1 + static_cast<int>(i)) {
+				tbbMainWnd[k].iBitmap = g_runToolImageIndex[i];
+				break;
+			}
+		}
+	}
+}
+
+//=============================================================================
+//
 // CreateBars() - Create Toolbar and Statusbar
 //
 //
@@ -2004,6 +2187,8 @@ void CreateBars(HWND hwnd, HINSTANCE hInstance) noexcept {
 	HIMAGELIST himl = ImageList_Create(bmp.bmHeight, bmp.bmHeight, ILC_COLOR32 | ILC_MASK, 0, 0);
 	ImageList_AddMasked(himl, hbmp, CLR_DEFAULT);
 	SendMessage(hwndToolbar, TB_SETIMAGELIST, 0, AsInteger<LPARAM>(himl));
+	g_himlToolbarImage = himl;
+	g_himlToolbarDisabled = nullptr;
 
 	if (internalBitmap) {
 		HBITMAP hbmpCopy = static_cast<HBITMAP>(CopyImage(hbmp, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION));
@@ -2016,6 +2201,7 @@ void CreateBars(HWND hwnd, HINSTANCE hInstance) noexcept {
 			himl = ImageList_Create(bmp.bmHeight, bmp.bmHeight, ILC_COLOR32 | ILC_MASK, 0, 0);
 			ImageList_AddMasked(himl, hbmpCopy, CLR_DEFAULT);
 			SendMessage(hwndToolbar, TB_SETDISABLEDIMAGELIST, 0, AsInteger<LPARAM>(himl));
+			g_himlToolbarDisabled = himl;
 		}
 		DeleteObject(hbmpCopy);
 	}
@@ -2052,9 +2238,15 @@ void CreateBars(HWND hwnd, HINSTANCE hInstance) noexcept {
 	SendMessage(hwndToolbar, TB_SETEXTENDEDSTYLE, 0,
 				SendMessage(hwndToolbar, TB_GETEXTENDEDSTYLE, 0, 0) | TBSTYLE_EX_MIXEDBUTTONS | TBSTYLE_EX_DRAWDDARROWS);
 
+	// 运行工具的编号徽章图标写入图像列表，并把槽位填进按钮表（默认不上工具栏）
+	memset(g_runToolImageIndex, -1, sizeof(g_runToolImageIndex));
+	Toolbar_PrepareRunToolIcons();
+
 	if (Toolbar_SetButtons(hwndToolbar, TOOLBAR_COMMAND_BASE, tchToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd)) == 0) {
 		Toolbar_SetButtons(hwndToolbar, TOOLBAR_COMMAND_BASE, DefaultToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd));
 	}
+	// 未配置命令的工具按钮置灰
+	Toolbar_UpdateRunToolStates();
 
 	RECT rc;
 	SendMessage(hwndToolbar, TB_GETITEMRECT, 0, AsInteger<LPARAM>(&rc));
@@ -2088,7 +2280,12 @@ void CreateBars(HWND hwnd, HINSTANCE hInstance) noexcept {
 	rbBand.hbmBack = nullptr;
 	rbBand.lpText = const_cast<LPWSTR>(L"Toolbar");
 	rbBand.hwndChild = hwndToolbar;
-	rbBand.cxMinChild = (rc.right - rc.left) * COUNTOF(tbbMainWnd);
+	// 按实际按钮数计算最小带宽：按钮表 71 项里含默认不显示的运行工具
+	int toolbarButtonCount = static_cast<int>(SendMessage(hwndToolbar, TB_BUTTONCOUNT, 0, 0));
+	if (toolbarButtonCount <= 0) {
+		toolbarButtonCount = COUNTOF(tbbMainWnd);
+	}
+	rbBand.cxMinChild = (rc.right - rc.left) * toolbarButtonCount;
 	rbBand.cyMinChild = (rc.bottom - rc.top) + 2 * rc.top;
 	rbBand.cx		= 0;
 	SendMessage(hwndReBar, RB_INSERTBAND, static_cast<WPARAM>(-1), AsInteger<LPARAM>(&rbBand));
@@ -3788,6 +3985,7 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 			}
 			UpdateRunToolsMenu();
 			UpdateToolbar();
+			Toolbar_UpdateRunToolStates();
 		}
 		break;
 
@@ -5932,6 +6130,7 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		switch (pnmh->code) {
 		case TBN_ENDADJUST:
 			UpdateToolbar();
+			Toolbar_UpdateRunToolStates();
 			break;
 
 		case TBN_QUERYDELETE:
@@ -5941,9 +6140,22 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		case TBN_GETBUTTONINFO: {
 			LPTBNOTIFY lpTbNotify = AsPointer<LPTBNOTIFY>(lParam);
 			if (static_cast<UINT>(lpTbNotify->iItem) < COUNTOF(tbbMainWnd)) {
+				const int idCmd = tbbMainWnd[lpTbNotify->iItem].idCommand;
 				WCHAR tch[128];
-				GetString(tbbMainWnd[lpTbNotify->iItem].idCommand, tch, COUNTOF(tch));
-				lstrcpyn(lpTbNotify->pszText, tch, lpTbNotify->cchText);
+				if (idCmd >= IDM_RUN_TOOL_1 && idCmd <= IDM_RUN_TOOL_10) {
+					// 运行工具按钮：显示工具菜单文本，未设置则 Tool N
+					const size_t i = static_cast<size_t>(idCmd - IDM_RUN_TOOL_1);
+					if (StrNotEmpty(runTools[i].menuText)) {
+						lstrcpyn(tch, runTools[i].menuText, COUNTOF(tch));
+					} else {
+						wsprintf(tch, L"Tool %u", static_cast<unsigned>(i) + 1);
+					}
+				} else {
+					GetString(idCmd, tch, COUNTOF(tch));
+				}
+				if (lpTbNotify->cchText > 0) {
+					lstrcpyn(lpTbNotify->pszText, tch, lpTbNotify->cchText);
+				}
 				memcpy(&lpTbNotify->tbButton, &tbbMainWnd[lpTbNotify->iItem], sizeof(TBBUTTON));
 				return TRUE;
 			}
@@ -5952,6 +6164,7 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 
 		case TBN_RESET:
 			Toolbar_SetButtons(hwndToolbar, TOOLBAR_COMMAND_BASE, DefaultToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd));
+			Toolbar_UpdateRunToolStates();
 			return FALSE;
 
 		case TBN_DROPDOWN: {
@@ -6057,6 +6270,14 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 			LPTOOLTIPTEXT pTTT = AsPointer<LPTOOLTIPTEXT>(lParam);
 			if (pTTT->uFlags & TTF_IDISHWND) {
 				//nop;
+			} else if (pnmh->idFrom >= IDM_RUN_TOOL_1 && pnmh->idFrom <= IDM_RUN_TOOL_10) {
+				// 运行工具按钮：显示工具菜单文本，未设置则显示 Tool N
+				const size_t i = static_cast<size_t>(pnmh->idFrom - IDM_RUN_TOOL_1);
+				if (StrNotEmpty(runTools[i].menuText)) {
+					lstrcpyn(pTTT->szText, runTools[i].menuText, COUNTOF(pTTT->szText));
+				} else {
+					wsprintf(pTTT->szText, L"Tool %u", static_cast<unsigned>(i) + 1);
+				}
 			} else {
 				WCHAR tch[128];
 				GetString(static_cast<UINT>(pnmh->idFrom), tch, COUNTOF(tch));
