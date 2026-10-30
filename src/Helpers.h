@@ -997,6 +997,7 @@ bool IsElevated() noexcept;
 
 HBITMAP LoadBitmapFile(LPCWSTR path) noexcept;
 HBITMAP ResizeImageForDPI(HBITMAP hbmp, UINT dpi) noexcept;
+HBITMAP ResizeImageHighQuality(HBITMAP hbmp, int width, int height) noexcept;
 inline HBITMAP ResizeImageForCurrentDPI(HBITMAP hbmp) noexcept {
 	return ResizeImageForDPI(hbmp, g_uCurrentDPI);
 }
@@ -1100,13 +1101,13 @@ void DeleteBitmapButton(HWND hwnd, int nCtlId) noexcept;
 BOOL StatusSetTextID(HWND hwnd, UINT nPart, UINT uID) noexcept;
 
 /**
- * we only have 26 commands in toolbar
- * max size = 26*(3 + 2) + 1 (each command with a separator)
+ * we only have 61 commands in toolbar
+ * max size = 61*(4 + 2) + 1 (each command with a separator, up to 3-digit index)
  */
-#define MAX_TOOLBAR_ITEM_COUNT_WITH_SEPARATOR	64
-#define MAX_TOOLBAR_BUTTON_CONFIG_BUFFER_SIZE	160
+#define MAX_TOOLBAR_ITEM_COUNT_WITH_SEPARATOR	128
+#define MAX_TOOLBAR_BUTTON_CONFIG_BUFFER_SIZE	1024
 int Toolbar_GetButtons(HWND hwnd, int cmdBase, LPWSTR lpszButtons, int cchButtons) noexcept;
-int Toolbar_SetButtons(HWND hwnd, LPCWSTR lpszButtons, LPCTBBUTTON ptbb, int ctbb) noexcept;
+int Toolbar_SetButtons(HWND hwnd, int cmdBase, LPCWSTR lpszButtons, LPCTBBUTTON ptbb, int ctbb) noexcept;
 
 LRESULT SendWMSize(HWND hwnd) noexcept;
 

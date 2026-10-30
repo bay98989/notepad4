@@ -401,27 +401,63 @@ HBITMAP ResizeImageForDPI(HBITMAP hbmp, UINT dpi) noexcept {
 		int height = (dpi*16) / USER_DEFAULT_SCREEN_DPI;
 		// round up to even to avoid trailing pixels when processed 4 pixels at a time
 		height += height & 1;
-		if (height == bmp.bmHeight && bmp.bmBitsPixel == 32) {
+		if (height == bmp.bmHeight) {
 			return hbmp;
 		}
 		// keep aspect ratio
 		const int width = MulDiv(height, bmp.bmWidth, bmp.bmHeight);
-		HBITMAP hCopy = static_cast<HBITMAP>(CopyImage(hbmp, IMAGE_BITMAP, width, height, LR_COPYRETURNORG | LR_COPYDELETEORG));
-		if (hCopy != nullptr) {
-#if 0
-			BITMAP bmp2;
-			if (GetObject(hCopy, sizeof(BITMAP), &bmp2)) {
-				printf("%s %u: (%d x %d, %d) => (%d x %d, %d)\n", __func__, dpi,
-				bmp.bmWidth, bmp.bmHeight, bmp.bmBitsPixel, bmp2.bmWidth, bmp2.bmHeight, bmp2.bmBitsPixel);
-			}
-#endif
-			hbmp = hCopy;
-		}
+		hbmp = ResizeImageHighQuality(hbmp, width, height);
 	}
 
 	return hbmp;
 }
 
+// High quality image resize using StretchBlt with HALFTONE (bicubic-ish filtering).
+HBITMAP ResizeImageHighQuality(HBITMAP hbmp, int width, int height) noexcept {
+	BITMAP bmp;
+	if (hbmp == nullptr || !GetObject(hbmp, sizeof(BITMAP), &bmp)) {
+		return hbmp;
+	}
+	if (width <= 0 || height <= 0) {
+		return hbmp;
+	}
+	if (width == bmp.bmWidth && height == bmp.bmHeight) {
+		return hbmp;
+	}
+
+	HDC hdcScreen = GetDC(nullptr);
+	HDC hdcSrc = CreateCompatibleDC(hdcScreen);
+	HDC hdcDst = CreateCompatibleDC(hdcScreen);
+	HBITMAP hbmpDst = CreateCompatibleBitmap(hdcScreen, width, height);
+	if (hbmpDst != nullptr) {
+		HGDIOBJ oldSrc = SelectObject(hdcSrc, hbmp);
+		HGDIOBJ oldDst = SelectObject(hdcDst, hbmpDst);
+
+		// icon bitmaps use black as the transparent color key: keep the border black
+		RECT rc = { 0, 0, width, height };
+		FillRect(hdcDst, &rc, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+
+		SetStretchBltMode(hdcDst, HALFTONE);
+		SetBrushOrgEx(hdcDst, 0, 0, nullptr);
+		if (StretchBlt(hdcDst, 0, 0, width, height, hdcSrc, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY)) {
+			SelectObject(hdcSrc, oldSrc);
+			SelectObject(hdcDst, oldDst);
+			DeleteDC(hdcSrc);
+			DeleteDC(hdcDst);
+			ReleaseDC(nullptr, hdcScreen);
+			DeleteObject(hbmp);
+			return hbmpDst;
+		}
+
+		SelectObject(hdcSrc, oldSrc);
+		SelectObject(hdcDst, oldDst);
+		DeleteObject(hbmpDst);
+	}
+	DeleteDC(hdcSrc);
+	DeleteDC(hdcDst);
+	ReleaseDC(nullptr, hdcScreen);
+	return hbmp;
+}
 
 void BackgroundWorker::Init(HWND owner) noexcept {
 	hwnd = owner;
@@ -1523,7 +1559,7 @@ int Toolbar_GetButtons(HWND hwnd, int cmdBase, LPWSTR lpszButtons, int cchButton
 	return count;
 }
 
-int Toolbar_SetButtons(HWND hwnd, LPCWSTR lpszButtons, LPCTBBUTTON ptbb, int ctbb) noexcept {
+int Toolbar_SetButtons(HWND hwnd, int cmdBase, LPCWSTR lpszButtons, LPCTBBUTTON ptbb, int ctbb) noexcept {
 	int count = static_cast<int>(SendMessage(hwnd, TB_BUTTONCOUNT, 0, 0));
 	if (StrIsEmpty(lpszButtons)) {
 		return count;
@@ -1534,22 +1570,32 @@ int Toolbar_SetButtons(HWND hwnd, LPCWSTR lpszButtons, LPCTBBUTTON ptbb, int ctb
 		--count;
 	}
 
+	// 配置串里的数字是 idCommand - cmdBase + 1（与 Toolbar_GetButtons 的序列化一致），
+	// 这里按命令 ID 反查按钮，而不是直接当数组下标用（ID 不连续时两者会错位）。
 	LPCWSTR p = lpszButtons;
-	--ctbb;
 	while (true) {
 		LPWSTR end;
 		int iCmd = static_cast<int>(wcstol(p, &end, 10));
-		if (p != end) {
-			iCmd = clamp(iCmd, 0, ctbb);
-			SendMessage(hwnd, TB_ADDBUTTONS, 1, AsInteger<LPARAM>(&ptbb[iCmd]));
-			p = end;
-			++count;
-			//if (count == MAX_TOOLBAR_ITEM_COUNT_WITH_SEPARATOR) {
-			//	break;
-			//}
-		} else {
+		if (p == end) {
 			break;
 		}
+		p = end;
+		int index = 0; // 0 = 分隔符
+		if (iCmd > 0) {
+			const int id = cmdBase + iCmd - 1;
+			index = -1;
+			for (int i = 1; i < ctbb; i++) {
+				if (ptbb[i].idCommand == id) {
+					index = i;
+					break;
+				}
+			}
+			if (index < 0) {
+				continue; // 未知命令，跳过
+			}
+		}
+		SendMessage(hwnd, TB_ADDBUTTONS, 1, AsInteger<LPARAM>(&ptbb[index]));
+		++count;
 	}
 
 	return count;

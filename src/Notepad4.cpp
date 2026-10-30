@@ -98,7 +98,7 @@ static const TBBUTTON tbbMainWnd[] =
 	{8, 	IDT_EDIT_PASTE, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{9, 	IDT_EDIT_FIND, 		TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{10, 	IDT_EDIT_REPLACE, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
-	{11, 	IDT_VIEW_WORDWRAP, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{11, 	IDT_VIEW_WORDWRAP, 	TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
 	{12, 	IDT_VIEW_ZOOMIN, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{13, 	IDT_VIEW_ZOOMOUT, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{14, 	IDT_VIEW_SCHEME, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
@@ -112,8 +112,46 @@ static const TBBUTTON tbbMainWnd[] =
 	{22, 	IDT_FILE_ADDTOFAV, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{23, 	IDT_VIEW_TOGGLEFOLDS, 	TBSTATE_ENABLED, BTNS_DROPDOWN, {0}, 0, 0},
 	{24, 	IDT_FILE_LAUNCH, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0}, ///
-	{25, 	IDT_VIEW_ALWAYSONTOP, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{25, 	IDT_VIEW_ALWAYSONTOP, 	TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
 	{26, 	IDT_FILE_NEWWINDOW, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},  ///
+	// 列编辑家族（图标索引 27-34）
+	{27, 	IDT_EDIT_MOVE_BLOCK_LEFT, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{28, 	IDT_EDIT_MOVE_BLOCK_RIGHT, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{29, 	IDT_EDIT_COLUMN_INSERT_BEFORE, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{30, 	IDT_EDIT_COLUMN_INSERT_AFTER, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{31, 	IDT_EDIT_INDENT, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{32, 	IDT_EDIT_UNINDENT, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{33, 	IDT_EDIT_LINECOMMENT, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{34, 	IDT_EDIT_STREAMCOMMENT, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	// 编辑操作（35-45）
+	{35, 	IDT_EDIT_SELECTALL, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{36, 	IDT_EDIT_DUPLICATELINE, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{37, 	IDT_EDIT_DELETELINE, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{38, 	IDT_EDIT_MOVELINEUP, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{39, 	IDT_EDIT_MOVELINEDOWN, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{40, 	IDT_EDIT_JOINLINES, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{41, 	IDT_EDIT_SORTLINES, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{42, 	IDT_EDIT_TRIMLINES, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{43, 	IDT_EDIT_REMOVEBLANKLINES, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{44, 	IDT_EDIT_CONVERTUPPERCASE, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{45, 	IDT_EDIT_CONVERTLOWERCASE, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	// 插入/查找/文件（46-53）
+	{46, 	IDT_EDIT_INSERT_SHORTDATE, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{47, 	IDT_EDIT_FINDNEXT, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{48, 	IDT_EDIT_GOTOLINE, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{49, 	IDT_EDIT_FINDMATCHINGBRACE, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{50, 	IDT_FILE_OPENWITH, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{51, 	IDT_FILE_RUN, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{52, 	IDT_FILE_RECENT, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{53, 	IDT_FILE_PROPERTIES, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	// 视图切换（54-60）
+	{54, 	IDT_VIEW_RESETZOOM, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{55, 	IDT_VIEW_LINENUMBERS, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
+	{56, 	IDT_VIEW_SHOWWHITESPACE, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
+	{57, 	IDT_VIEW_SHOWEOLS, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
+	{58, 	IDT_VIEW_SHOWINDENTGUIDES, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
+	{59, 	IDT_VIEW_LONGLINEMARKER, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
+	{60, 	IDT_VIEW_TOGGLE_FULLSCREEN, TBSTATE_ENABLED, TBSTYLE_CHECK, {0}, 0, 0},
 };
 // NOLINTEND(readability-redundant-zero-initializer)
 
@@ -1934,10 +1972,30 @@ void CreateBars(HWND hwnd, HINSTANCE hInstance) noexcept {
 	}
 	if (hbmp == nullptr) {
 		internalBitmap = true;
-		const int resource = GetBitmapResourceIdForDPI(IDB_TOOLBAR16, dpi);
-		hbmp = static_cast<HBITMAP>(LoadImage(g_exeInstance, MAKEINTRESOURCE(resource), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION));
+		// Pick the embedded bitmap whose native height matches the requested size exactly,
+		// so that no resampling (which blurs the icons) is needed.
+		//// 挑选**原生高度和目标尺寸完全一致**的内嵌位图，
+		// 这样就不需要做重采样（重采样会让图标变糊）。
+		static constexpr int toolbarBmpSizes[] = { 16, 24, 32, 40, 48 };
+		static constexpr int toolbarBmpIds[] = {
+			IDB_TOOLBAR16, IDB_TOOLBAR24, IDB_TOOLBAR32, IDB_TOOLBAR40, IDB_TOOLBAR48
+		};
+		int targetHeight = 16;
+		if (scale != 0) {
+			targetHeight = static_cast<int>(dpi) * 16 / USER_DEFAULT_SCREEN_DPI;
+			targetHeight += targetHeight & 1;	// even, matches ResizeImageForDPI()
+		}
+		// smallest bitmap that is at least as large as the target size
+		size_t pick = COUNTOF(toolbarBmpSizes) - 1;
+		for (size_t i = 0; i < COUNTOF(toolbarBmpSizes); i++) {
+			if (toolbarBmpSizes[i] >= targetHeight) {
+				pick = i;
+				break;
+			}
+		}
+		hbmp = static_cast<HBITMAP>(LoadImage(g_exeInstance, MAKEINTRESOURCE(toolbarBmpIds[pick]), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION));
 	}
-	if (scale != 0) {
+	if (scale != 0 && hbmp != nullptr) {
 		hbmp = ResizeImageForDPI(hbmp, dpi);
 	}
 
@@ -1994,8 +2052,8 @@ void CreateBars(HWND hwnd, HINSTANCE hInstance) noexcept {
 	SendMessage(hwndToolbar, TB_SETEXTENDEDSTYLE, 0,
 				SendMessage(hwndToolbar, TB_GETEXTENDEDSTYLE, 0, 0) | TBSTYLE_EX_MIXEDBUTTONS | TBSTYLE_EX_DRAWDDARROWS);
 
-	if (Toolbar_SetButtons(hwndToolbar, tchToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd)) == 0) {
-		Toolbar_SetButtons(hwndToolbar, DefaultToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd));
+	if (Toolbar_SetButtons(hwndToolbar, TOOLBAR_COMMAND_BASE, tchToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd)) == 0) {
+		Toolbar_SetButtons(hwndToolbar, TOOLBAR_COMMAND_BASE, DefaultToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd));
 	}
 
 	RECT rc;
@@ -3483,6 +3541,52 @@ static void ShowFunctionList(HWND hwnd) noexcept {
 
 LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 	UNREFERENCED_PARAMETER(lParam);
+
+	// 工具栏扩展命令（IDT_*）转发到对应的菜单命令（IDM_*）处理分支，
+	// 同步执行保证内层 switch(LOWORD(wParam))（如查找下一个）也能正确路由。
+	static constexpr struct { WORD idt; WORD idm; } tbForward[] = {
+		{ IDT_EDIT_MOVE_BLOCK_LEFT,		IDM_EDIT_MOVE_BLOCK_LEFT },
+		{ IDT_EDIT_MOVE_BLOCK_RIGHT,	IDM_EDIT_MOVE_BLOCK_RIGHT },
+		{ IDT_EDIT_COLUMN_INSERT_BEFORE, IDM_EDIT_COLUMN_INSERT_BEFORE },
+		{ IDT_EDIT_COLUMN_INSERT_AFTER,	IDM_EDIT_COLUMN_INSERT_AFTER },
+		{ IDT_EDIT_INDENT,				IDM_EDIT_INDENT },
+		{ IDT_EDIT_UNINDENT,			IDM_EDIT_UNINDENT },
+		{ IDT_EDIT_LINECOMMENT,			IDM_EDIT_LINECOMMENT },
+		{ IDT_EDIT_STREAMCOMMENT,		IDM_EDIT_STREAMCOMMENT },
+		{ IDT_EDIT_SELECTALL,			IDM_EDIT_SELECTALL },
+		{ IDT_EDIT_DUPLICATELINE,		IDM_EDIT_DUPLICATELINE },
+		{ IDT_EDIT_DELETELINE,			IDM_EDIT_DELETELINE },
+		{ IDT_EDIT_MOVELINEUP,			IDM_EDIT_MOVELINEUP },
+		{ IDT_EDIT_MOVELINEDOWN,		IDM_EDIT_MOVELINEDOWN },
+		{ IDT_EDIT_JOINLINES,			IDM_EDIT_JOINLINES },
+		{ IDT_EDIT_SORTLINES,			IDM_EDIT_SORTLINES },
+		{ IDT_EDIT_TRIMLINES,			IDM_EDIT_TRIMLINES },
+		{ IDT_EDIT_REMOVEBLANKLINES,	IDM_EDIT_REMOVEBLANKLINES },
+		{ IDT_EDIT_CONVERTUPPERCASE,	IDM_EDIT_CONVERTUPPERCASE },
+		{ IDT_EDIT_CONVERTLOWERCASE,	IDM_EDIT_CONVERTLOWERCASE },
+		{ IDT_EDIT_INSERT_SHORTDATE,	IDM_EDIT_INSERT_SHORTDATE },
+		{ IDT_EDIT_FINDNEXT,			IDM_EDIT_FINDNEXT },
+		{ IDT_EDIT_GOTOLINE,			IDM_EDIT_GOTOLINE },
+		{ IDT_EDIT_FINDMATCHINGBRACE,	IDM_EDIT_FINDMATCHINGBRACE },
+		{ IDT_FILE_OPENWITH,			IDM_FILE_OPENWITH },
+		{ IDT_FILE_RUN,					IDM_FILE_RUN },
+		{ IDT_FILE_RECENT,				IDM_FILE_RECENT },
+		{ IDT_FILE_PROPERTIES,			IDM_FILE_PROPERTIES },
+		{ IDT_VIEW_RESETZOOM,			IDM_VIEW_RESETZOOM },
+		{ IDT_VIEW_LINENUMBERS,			IDM_VIEW_LINENUMBERS },
+		{ IDT_VIEW_SHOWWHITESPACE,		IDM_VIEW_SHOWWHITESPACE },
+		{ IDT_VIEW_SHOWEOLS,			IDM_VIEW_SHOWEOLS },
+		{ IDT_VIEW_SHOWINDENTGUIDES,	IDM_VIEW_SHOWINDENTGUIDES },
+		{ IDT_VIEW_LONGLINEMARKER,		IDM_VIEW_LONGLINEMARKER },
+		{ IDT_VIEW_TOGGLE_FULLSCREEN,	IDM_VIEW_TOGGLE_FULLSCREEN },
+	};
+	for (const auto &fwd : tbForward) {
+		if (LOWORD(wParam) == fwd.idt) {
+			SendMessage(hwnd, WM_COMMAND, MAKELPARAM(fwd.idm, 0), 0);
+			UpdateToolbar(); // 行号/空白符等切换按钮的按下状态在这里刷新
+			return 0;
+		}
+	}
 
 	switch (LOWORD(wParam)) {
 	case IDT_FILE_NEW:
@@ -5847,7 +5951,7 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		return FALSE;
 
 		case TBN_RESET:
-			Toolbar_SetButtons(hwndToolbar, DefaultToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd));
+			Toolbar_SetButtons(hwndToolbar, TOOLBAR_COMMAND_BASE, DefaultToolbarButtons, tbbMainWnd, COUNTOF(tbbMainWnd));
 			return FALSE;
 
 		case TBN_DROPDOWN: {
@@ -7361,8 +7465,33 @@ void UpdateToolbar() noexcept {
 	EnableTool(IDT_EDIT_REPLACE, nonEmpty);
 	EnableTool(IDT_EDIT_DELETE, nonEmpty);
 
+	const bool hasSel = SciCall_GetSelectionStart() != SciCall_GetSelectionEnd();
+	EnableTool(IDT_EDIT_SELECTALL, nonEmpty);
+	EnableTool(IDT_EDIT_FINDNEXT, nonEmpty);
+	EnableTool(IDT_EDIT_GOTOLINE, nonEmpty);
+	EnableTool(IDT_EDIT_DELETELINE, nonEmpty);
+	EnableTool(IDT_EDIT_SORTLINES, hasSel);
+	EnableTool(IDT_EDIT_TRIMLINES, hasSel);
+	EnableTool(IDT_EDIT_CONVERTUPPERCASE, hasSel);
+	EnableTool(IDT_EDIT_CONVERTLOWERCASE, hasSel);
+	EnableTool(IDT_FILE_OPENWITH, hasPath);
+	EnableTool(IDT_FILE_PROPERTIES, hasPath);
+
+	// 列编辑家族：需要矩形选区
+	const bool rectSel = SciCall_IsRectangularSelection();
+	EnableTool(IDT_EDIT_MOVE_BLOCK_LEFT, rectSel);
+	EnableTool(IDT_EDIT_MOVE_BLOCK_RIGHT, rectSel);
+	EnableTool(IDT_EDIT_COLUMN_INSERT_BEFORE, rectSel);
+	EnableTool(IDT_EDIT_COLUMN_INSERT_AFTER, rectSel);
+
 	CheckTool(IDT_VIEW_WORDWRAP, fvCurFile.fWordWrap);
 	CheckTool(IDT_VIEW_ALWAYSONTOP, IsTopMost());
+	CheckTool(IDT_VIEW_LINENUMBERS, bShowLineNumbers);
+	CheckTool(IDT_VIEW_SHOWWHITESPACE, bViewWhiteSpace);
+	CheckTool(IDT_VIEW_SHOWEOLS, bViewEOLs);
+	CheckTool(IDT_VIEW_SHOWINDENTGUIDES, bShowIndentGuides);
+	CheckTool(IDT_VIEW_LONGLINEMARKER, bMarkLongLines);
+	CheckTool(IDT_VIEW_TOGGLE_FULLSCREEN, bInFullScreenMode);
 }
 
 //=============================================================================
