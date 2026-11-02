@@ -46,6 +46,7 @@ struct RunToolConfig {
 	WCHAR command[MAX_PATH];
 	WCHAR arguments[1024];
 	WCHAR workingDirectory[MAX_PATH];
+	bool captureOutput;		// 捕获并显示子进程的控制台输出与退出码
 };
 
 bool	RunToolsConfigDlg(HWND hwnd, RunToolConfig *tools, size_t count) noexcept;

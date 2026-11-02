@@ -1163,6 +1163,184 @@ static void SaveAllSettings(bool destroy) noexcept {
 
 //=============================================================================
 //
+// RunToolCapture() - 捕获运行工具的控制台输出（stdout/stderr 合并）
+//
+// 后台线程读取管道直到子进程退出（EOF），再通过 APPM_RUNTOOLFINISHED
+// 投递回主线程显示，避免阻塞 Notepad4 界面。
+//
+
+struct RunToolCaptureContext {
+	HANDLE process;
+	HANDLE pipeRead;
+	LPSTR output;		// 子进程原始输出字节（控制台编码）
+	size_t length;
+	size_t capacity;
+	DWORD exitCode;
+	WCHAR commandLine[MAX_PATH * 2 + 2048 + 4];	// 展开后的完整命令行，用于展示
+};
+
+static constexpr size_t RUNTOOL_CAPTURE_MAX = 1024 * 1024;	// 最多保留 1MB 输出
+
+static void RunToolCaptureAppend(RunToolCaptureContext *ctx, const char *data, size_t count) noexcept {
+	if (ctx->length >= RUNTOOL_CAPTURE_MAX) {
+		return;
+	}
+	if (ctx->length + count > RUNTOOL_CAPTURE_MAX) {
+		count = RUNTOOL_CAPTURE_MAX - ctx->length;
+	}
+	if (ctx->length + count + 1 > ctx->capacity) {
+		size_t newCapacity = ctx->capacity ? ctx->capacity : 4096;
+		while (ctx->length + count + 1 > newCapacity) {
+			newCapacity *= 2;
+		}
+		// 注意：HeapReAlloc 不接受 NULL 指针，首次分配必须用 HeapAlloc
+		bool grown = false;
+		if (ctx->output == nullptr) {
+			ctx->output = static_cast<LPSTR>(NP2HeapAlloc(newCapacity));
+			grown = (ctx->output != nullptr);
+		} else if (LPSTR newData = static_cast<LPSTR>(NP2HeapReAlloc(ctx->output, newCapacity))) {
+			ctx->output = newData;
+			grown = true;
+		}
+		if (grown) {
+			ctx->capacity = newCapacity;
+		} else {
+			count = 0;	// 内存不足时丢弃后续输出
+		}
+	}
+	if (count != 0) {
+		memcpy(ctx->output + ctx->length, data, count);
+		ctx->length += count;
+		ctx->output[ctx->length] = '\0';
+	}
+}
+
+static DWORD WINAPI RunToolCaptureThreadProc(LPVOID param) noexcept {
+	auto *ctx = static_cast<RunToolCaptureContext *>(param);
+	char buffer[4096];
+	DWORD read = 0;
+	while (ReadFile(ctx->pipeRead, buffer, COUNTOF(buffer), &read, nullptr) && read != 0) {
+		RunToolCaptureAppend(ctx, buffer, read);
+	}
+	CloseHandle(ctx->pipeRead);
+	WaitForSingleObject(ctx->process, INFINITE);
+	GetExitCodeProcess(ctx->process, &(ctx->exitCode));
+	CloseHandle(ctx->process);
+	PostMessage(hwndMain, APPM_RUNTOOLFINISHED, 0, reinterpret_cast<LPARAM>(ctx));
+	return 0;
+}
+
+// 把退出码翻译成人话，常见的编译器/系统错误码给出具体含义
+static void RunToolGetExitCodeDescription(DWORD exitCode, LPWSTR buffer, int capacity) noexcept {
+	switch (exitCode) {
+	case 0:
+		lstrcpyn(buffer, L"正常结束", capacity);
+		break;
+	case 1:
+		lstrcpyn(buffer, L"程序执行出错（通用错误码，编译失败、脚本运行出错等常见）", capacity);
+		break;
+	case 2:
+		lstrcpyn(buffer, L"用法或参数有误（gcc/g++ 等编译器的常见错误码）", capacity);
+		break;
+	case 3:
+		lstrcpyn(buffer, L"系统找不到指定的路径", capacity);
+		break;
+	case 9009:
+		lstrcpyn(buffer, L"无法识别的命令（命令名拼写有误，或程序不在 PATH 中）", capacity);
+		break;
+	default:
+		if (exitCode == 0xC0000005u) {
+			lstrcpyn(buffer, L"访问冲突（程序崩溃，多半是空指针/野指针）", capacity);
+		} else if (exitCode == 0xC0000135u) {
+			lstrcpyn(buffer, L"找不到所需的动态链接库（DLL）", capacity);
+		} else if (exitCode == 0xC000013Au) {
+			lstrcpyn(buffer, L"被用户中断（Ctrl+C 或关闭了窗口）", capacity);
+		} else if (exitCode == 0xC0000409u) {
+			lstrcpyn(buffer, L"程序异常终止（如堆栈缓冲区溢出保护触发）", capacity);
+		} else if (exitCode == 0xC0000142u) {
+			lstrcpyn(buffer, L"DLL 初始化失败", capacity);
+		} else if ((exitCode & 0x80000000u) != 0) {
+			wsprintf(buffer, L"异常退出（NTSTATUS 0x%08X）", exitCode);
+		} else {
+			lstrcpyn(buffer, L"非零退出码，程序报告了某种错误", capacity);
+		}
+		break;
+	}
+}
+
+static void RunToolShowCapturedOutput(RunToolCaptureContext *ctx) noexcept {
+	const bool failed = ctx->exitCode != 0;
+	if (!failed && (ctx->output == nullptr || ctx->length == 0)) {
+		// 成功且无输出，保持静默，与未开启捕获时体验一致
+		if (ctx->output != nullptr) {
+			NP2HeapFree(ctx->output);
+		}
+		NP2HeapFree(ctx);
+		return;
+	}
+	WCHAR body[8192];
+	body[0] = L'\0';
+	// 实际执行的命令，方便核对宏展开、参数拼写是否正确
+	lstrcat(body, L"命令:\r\n    ");
+	lstrcat(body, ctx->commandLine);
+	lstrcat(body, L"\r\n\r\n");
+	// 子进程输出
+	if (ctx->output != nullptr && ctx->length != 0) {
+		WCHAR converted[3000];
+		const int bytes = static_cast<int>((ctx->length < 2048) ? ctx->length : 2048);
+		// 带 UTF-8 BOM 的输出优先按 UTF-8 解码，其余按控制台 OEM/ANSI 编码
+		const bool utf8 = (ctx->length >= 3)
+			&& (static_cast<unsigned char>(ctx->output[0]) == 0xEF)
+			&& (static_cast<unsigned char>(ctx->output[1]) == 0xBB)
+			&& (static_cast<unsigned char>(ctx->output[2]) == 0xBF);
+		const UINT codePage = utf8 ? CP_UTF8 : CP_OEMCP;
+		const int offset = utf8 ? 3 : 0;
+		int written = MultiByteToWideChar(codePage, 0, ctx->output + offset, bytes - offset, converted, 3000);
+		if (written <= 0) {
+			written = MultiByteToWideChar(CP_ACP, 0, ctx->output + offset, bytes - offset, converted, 3000);
+		}
+		if (written > 0) {
+			lstrcat(body, L"—— 以下为命令输出 ————\r\n");
+			converted[(written > 2999) ? 2999 : written] = L'\0';
+			lstrcat(body, converted);
+			if (ctx->length > static_cast<size_t>(bytes)) {
+				lstrcat(body, L"\r\n……（输出过长，已截断）");
+			}
+			lstrcat(body, L"\r\n\r\n");
+		}
+	}
+	// 退出码及其含义
+	WCHAR desc[160];
+	RunToolGetExitCodeDescription(ctx->exitCode, desc, COUNTOF(desc));
+	WCHAR exitLine[224];
+	wsprintf(exitLine, L"退出码: %lu（%s）", ctx->exitCode, desc);
+	lstrcat(body, exitLine);
+	// 有错误退出码但没有任何输出时，给出排查方向
+	if (failed && (ctx->output == nullptr || ctx->length == 0)) {
+		lstrcat(body,
+			L"\r\n\r\n命令没有输出任何错误信息，常见原因：\r\n"
+			L"· 命令名或参数拼写有误\r\n"
+			L"· 源文件、输出路径不存在或不可写\r\n"
+			L"· 工作目录不对，依赖的文件找不到\r\n"
+			L"· 编译器/程序把信息写到了日志文件而非控制台");
+	}
+	// 父窗口用当前活动窗口：运行工具配置对话框打开时以它为父（弹在对话框上方），
+	// 否则以主窗口为父。MB_SETFOREGROUND 防止 Notepad4 不在前台时消息框
+	// 弹在背后，用户看不到模态框、界面像"卡死关不掉"一样没有响应。
+	HWND owner = GetActiveWindow();
+	if (owner == nullptr) {
+		owner = hwndMain;
+	}
+	MessageBoxW(owner, body, failed ? L"运行工具出错" : L"运行工具输出",
+		(failed ? MB_ICONWARNING : MB_ICONINFORMATION) | MB_OK | MB_SETFOREGROUND);
+	if (ctx->output != nullptr) {
+		NP2HeapFree(ctx->output);
+	}
+	NP2HeapFree(ctx);
+}
+
+//=============================================================================
+//
 // MainWndProc()
 //
 // Messages are distributed to the MsgXXX-handlers
@@ -1545,6 +1723,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam)
 			InstallFileWatching(terminate);
 		}
 	} break;
+
+	case APPM_RUNTOOLFINISHED:
+		RunToolShowCapturedOutput(reinterpret_cast<RunToolCaptureContext *>(lParam));
+		break;
 
 	//// This message is posted before Notepad4 reactivates itself
 	//case APPM_CHANGENOTIFYCLEAR:
@@ -3174,18 +3356,83 @@ bool RunConfiguredTool(HWND hwnd, const RunToolConfig &tool) noexcept {
 		MsgBoxWarn(MB_OK, IDS_BUFFERTOOSMALL);
 		return false;
 	}
+	SECURITY_ATTRIBUTES pipeAttributes{sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
+	HANDLE pipeRead = nullptr;
+	HANDLE pipeWrite = nullptr;
+	HANDLE nullInput = nullptr;
+	RunToolCaptureContext *capture = nullptr;
+	if (tool.captureOutput) {
+		if (!CreatePipe(&pipeRead, &pipeWrite, &pipeAttributes, 0)) {
+			MsgBoxLastError(MB_OK, IDS_ERR_RUNTOOL, expanded.executable);
+			return false;
+		}
+		capture = static_cast<RunToolCaptureContext *>(NP2HeapAlloc(sizeof(RunToolCaptureContext)));
+		if (capture == nullptr) {
+			CloseHandle(pipeRead);
+			CloseHandle(pipeWrite);
+			MsgBoxLastError(MB_OK, IDS_ERR_RUNTOOL, expanded.executable);
+			return false;
+		}
+		lstrcpyn(capture->commandLine, expanded.commandLine, COUNTOF(capture->commandLine));
+		// 子进程 stdin 挂 NUL 设备：读标准输入的程序立刻得到 EOF，而不是无效句柄
+		// 注意：CreateFileW 失败返回 INVALID_HANDLE_VALUE 而非 nullptr，需归一化
+		nullInput = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+			&pipeAttributes, OPEN_EXISTING, 0, nullptr);
+		if (nullInput == INVALID_HANDLE_VALUE) {
+			nullInput = nullptr;
+		}
+	}
 	STARTUPINFO si{};
 	si.cb = sizeof(si);
 	PROCESS_INFORMATION pi{};
 	// lpApplicationName 传 nullptr，由系统解析整条命令行，
 	// 使命令框支持内嵌参数（如 cmd.exe /c xxx、python "$(FilePath)"）
-	if (!CreateProcess(nullptr, expanded.commandLine, nullptr, nullptr, FALSE, 0, nullptr,
+	if (capture != nullptr) {
+		// 接管子进程的 stdout/stderr；CREATE_NO_WINDOW 避免控制台窗口一闪而过
+		si.dwFlags |= STARTF_USESTDHANDLES;
+		si.hStdInput = nullInput;
+		si.hStdOutput = pipeWrite;
+		si.hStdError = pipeWrite;
+	}
+	if (!CreateProcess(nullptr, expanded.commandLine, nullptr, nullptr,
+		(capture != nullptr) ? TRUE : FALSE,
+		(capture != nullptr) ? CREATE_NO_WINDOW : 0,
+		nullptr,
 		StrNotEmpty(expanded.directory) ? expanded.directory : nullptr, &si, &pi)) {
+		if (capture != nullptr) {
+			if (nullInput != nullptr) {
+				CloseHandle(nullInput);
+			}
+			CloseHandle(pipeRead);
+			CloseHandle(pipeWrite);
+			NP2HeapFree(capture);
+		}
 		MsgBoxLastError(MB_OK, IDS_ERR_RUNTOOL, expanded.executable);
 		return false;
 	}
 	CloseHandle(pi.hThread);
-	CloseHandle(pi.hProcess);
+	if (capture != nullptr) {
+		if (nullInput != nullptr) {
+			CloseHandle(nullInput);
+		}
+		// 关闭父进程持有的写端，子进程退出后管道 EOF，读取线程自然结束
+		CloseHandle(pipeWrite);
+		capture->process = pi.hProcess;
+		capture->pipeRead = pipeRead;
+		HANDLE thread = CreateThread(nullptr, 0, RunToolCaptureThreadProc, capture, 0, nullptr);
+		if (thread != nullptr) {
+			CloseHandle(thread);
+		} else {
+			// 线程创建失败：降级为同步等待后直接显示
+			CloseHandle(capture->pipeRead);
+			WaitForSingleObject(capture->process, INFINITE);
+			GetExitCodeProcess(capture->process, &(capture->exitCode));
+			CloseHandle(capture->process);
+			RunToolShowCapturedOutput(capture);
+		}
+	} else {
+		CloseHandle(pi.hProcess);
+	}
 	return true;
 }
 
@@ -6320,7 +6567,28 @@ static void LoadRunToolsSettings() noexcept {
 		IniGetString(L"RunTools", key, L"", runTools[i].arguments, COUNTOF(runTools[i].arguments));
 		wsprintf(key, L"Tool%uDirectory", static_cast<unsigned>(i + 1));
 		IniGetString(L"RunTools", key, L"", runTools[i].workingDirectory, COUNTOF(runTools[i].workingDirectory));
+		wsprintf(key, L"Tool%uCapture", static_cast<unsigned>(i + 1));
+		runTools[i].captureOutput = IniGetInt(L"RunTools", key, 0) != 0;
 	}
+}
+
+// GetPrivateProfileString 读取时，仅在值首尾均为引号时丢弃最外层一对引号，导致
+// "$(FilePath)" -o "$(FileDir)\$(FileNameNoExt).exe" 这类整体首尾带引号的
+// 配置在写盘重启后首尾引号丢失、引号不平衡而无法运行。
+// 写入前给首尾引号各补一层，读取时 API 只剥掉一层，恰好还原为原值；
+// 仅单边带引号的值 API 会原样保留，无需转义。
+static bool IniSetStringKeepQuotes(LPCWSTR lpSection, LPCWSTR lpName, LPCWSTR lpString) noexcept {
+	WCHAR escaped[1024 + 4];
+	const size_t length = static_cast<size_t>(lstrlen(lpString));
+	if (length == 0 || length >= COUNTOF(escaped) - 2
+		|| lpString[0] != L'"' || lpString[length - 1] != L'"') {
+		return IniSetString(lpSection, lpName, lpString);
+	}
+	escaped[0] = L'"';
+	memcpy(escaped + 1, lpString, length * sizeof(WCHAR));
+	escaped[length + 1] = L'"';
+	escaped[length + 2] = L'\0';
+	return IniSetString(lpSection, lpName, escaped);
 }
 
 static bool SaveRunToolsSettings() noexcept {
@@ -6328,13 +6596,15 @@ static bool SaveRunToolsSettings() noexcept {
 	bool success = true;
 	for (size_t i = 0; i < RunToolsCount; i++) {
 		wsprintf(key, L"Tool%uMenu", static_cast<unsigned>(i + 1));
-		success = IniSetString(L"RunTools", key, runTools[i].menuText) && success;
+		success = IniSetStringKeepQuotes(L"RunTools", key, runTools[i].menuText) && success;
 		wsprintf(key, L"Tool%uCommand", static_cast<unsigned>(i + 1));
-		success = IniSetString(L"RunTools", key, runTools[i].command) && success;
+		success = IniSetStringKeepQuotes(L"RunTools", key, runTools[i].command) && success;
 		wsprintf(key, L"Tool%uArguments", static_cast<unsigned>(i + 1));
-		success = IniSetString(L"RunTools", key, runTools[i].arguments) && success;
+		success = IniSetStringKeepQuotes(L"RunTools", key, runTools[i].arguments) && success;
 		wsprintf(key, L"Tool%uDirectory", static_cast<unsigned>(i + 1));
-		success = IniSetString(L"RunTools", key, runTools[i].workingDirectory) && success;
+		success = IniSetStringKeepQuotes(L"RunTools", key, runTools[i].workingDirectory) && success;
+		wsprintf(key, L"Tool%uCapture", static_cast<unsigned>(i + 1));
+		IniSetBool(L"RunTools", key, runTools[i].captureOutput);
 	}
 	return success;
 }

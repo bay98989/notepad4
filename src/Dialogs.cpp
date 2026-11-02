@@ -489,6 +489,7 @@ static void RunToolsGetCurrent(HWND hwnd, RunToolConfig &tool) noexcept {
 	GetDlgItemText(hwnd, IDC_RUNTOOLS_COMMAND, tool.command, COUNTOF(tool.command));
 	GetDlgItemText(hwnd, IDC_RUNTOOLS_ARGUMENTS, tool.arguments, COUNTOF(tool.arguments));
 	GetDlgItemText(hwnd, IDC_RUNTOOLS_DIRECTORY, tool.workingDirectory, COUNTOF(tool.workingDirectory));
+	tool.captureOutput = Button_GetCheck(GetDlgItem(hwnd, IDC_RUNTOOLS_CAPTURE)) != BST_UNCHECKED;
 }
 
 static void RunToolsSetCurrent(HWND hwnd, const RunToolConfig &tool) noexcept {
@@ -496,6 +497,7 @@ static void RunToolsSetCurrent(HWND hwnd, const RunToolConfig &tool) noexcept {
 	SetDlgItemText(hwnd, IDC_RUNTOOLS_COMMAND, tool.command);
 	SetDlgItemText(hwnd, IDC_RUNTOOLS_ARGUMENTS, tool.arguments);
 	SetDlgItemText(hwnd, IDC_RUNTOOLS_DIRECTORY, tool.workingDirectory);
+	Button_SetCheck(GetDlgItem(hwnd, IDC_RUNTOOLS_CAPTURE), tool.captureOutput ? BST_CHECKED : BST_UNCHECKED);
 }
 
 struct RunToolsDialogState {
@@ -604,6 +606,7 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 					lstrcpy(tool.command, L"gcc.exe");
 					lstrcpy(tool.arguments, L"\"$(FilePath)\" -o \"$(FileDir)\\$(FileNameNoExt).exe\"");
 					lstrcpy(tool.workingDirectory, L"$(FileDir)");
+					tool.captureOutput = true;	// 编译错误输出到 stderr，默认捕获
 					RunToolsSetCurrent(hwnd, tool);
 					break;
 			case 2:
@@ -611,6 +614,7 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 				lstrcpy(tool.menuText, presetName);
 				lstrcpy(tool.command, L"$(FileDir)\\$(FileNameNoExt).exe");
 				lstrcpy(tool.workingDirectory, L"$(FileDir)");
+				tool.captureOutput = true;	// 捕获程序运行输出
 				RunToolsSetCurrent(hwnd, tool);
 				break;
 			case 3:
