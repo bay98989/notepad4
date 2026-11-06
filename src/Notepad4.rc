@@ -328,7 +328,7 @@ BEGIN
             MENUITEM "&VBA / VB 6.0",               IDM_LEXER_VBA
             MENUITEM "VB&Script",                   IDM_LEXER_VBS
         END
-        POPUP "&XML 文档"
+        POPUP "Mark&down"
         BEGIN
             MENUITEM "XML 文档(&X)",                  IDM_LEXER_XML
             MENUITEM "XML 方案(&S)",                  IDM_LEXER_XSD
@@ -847,35 +847,41 @@ BEGIN
     SCROLLBAR       IDC_RESIZEGRIP3,7,65,10,10,SBS_SIZEGRIP | WS_CLIPSIBLINGS
 END
 
-IDD_RUNTOOLS DIALOGEX 0, 0, 305, 180
+IDD_RUNTOOLS DIALOGEX 0, 0, 305, 248
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "配置运行工具"
 FONT 9, "Segoe UI", 400, 0, 0x1
 BEGIN
     LTEXT           "工具:",IDC_STATIC,7,12,33,10
-    COMBOBOX        IDC_RUNTOOLS_SLOT,49,10,250,300,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "预设：",IDC_RUNTOOLS_PRESET_LABEL,7,30,34,10
-    COMBOBOX        IDC_RUNTOOLS_PRESET,49,28,250,300,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "菜单文本:",IDC_STATIC,7,50,34,10
-    EDITTEXT        IDC_RUNTOOLS_NAME,49,47,250,14,ES_AUTOHSCROLL
-    LTEXT           "命令:",IDC_STATIC,7,69,35,10
-    EDITTEXT        IDC_RUNTOOLS_COMMAND,49,67,217,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_RUNTOOLS_BROWSE_COMMAND,271,67,28,14
-    LTEXT           "参数:",IDC_STATIC,7,89,33,10
-    EDITTEXT        IDC_RUNTOOLS_ARGUMENTS,49,86,250,14,ES_AUTOHSCROLL
-    LTEXT           "起始目录:",IDC_RUNTOOLS_DIRECTORY_LABEL,7,109,38,10
-    EDITTEXT        IDC_RUNTOOLS_DIRECTORY,49,106,215,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_RUNTOOLS_BROWSE_DIRECTORY,269,106,30,14
-    LTEXT           "插入文本：",IDC_RUNTOOLS_MACRO_LABEL,7,126,53,10
-    COMBOBOX        IDC_RUNTOOLS_MACRO,79,124,99,120,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "插入",IDC_RUNTOOLS_INSERT_MACRO,186,123,43,13
-    AUTOCHECKBOX       "捕获输出(&C)",IDC_RUNTOOLS_CAPTURE,237,124,61,10
-    LTEXT           "运行预览:",IDC_RUNTOOLS_COMMANDLINE_LABEL,7,145,40,10
-    EDITTEXT        IDC_RUNTOOLS_PREVIEW,49,142,249,14,ES_AUTOHSCROLL | ES_READONLY
-//    LTEXT           "运行目录:",IDC_RUNTOOLS_PREVIEW_LABEL,7,163,40,10
+    LISTBOX          IDC_RUNTOOLS_LIST,49,10,190,64,LBS_NOTIFY | LBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "添加",IDC_RUNTOOLS_ADD,244,10,54,14
+    PUSHBUTTON      "删除",IDC_RUNTOOLS_DELETE,244,26,54,14
+    PUSHBUTTON      "上移",IDC_RUNTOOLS_UP,244,42,54,14
+    PUSHBUTTON      "下移",IDC_RUNTOOLS_DOWN,244,58,54,14
+    LTEXT           "预设：",IDC_RUNTOOLS_PRESET_LABEL,7,78,34,10
+    COMBOBOX        IDC_RUNTOOLS_PRESET,49,76,250,300,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "菜单文本:",IDC_STATIC,7,98,34,10
+    EDITTEXT        IDC_RUNTOOLS_NAME,49,95,250,14,ES_AUTOHSCROLL
+    LTEXT           "命令:",IDC_STATIC,7,117,35,10
+    EDITTEXT        IDC_RUNTOOLS_COMMAND,49,115,217,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_RUNTOOLS_BROWSE_COMMAND,271,115,28,14
+    LTEXT           "参数:",IDC_STATIC,7,137,33,10
+    EDITTEXT        IDC_RUNTOOLS_ARGUMENTS,49,134,250,14,ES_AUTOHSCROLL
+    LTEXT           "起始目录:",IDC_RUNTOOLS_DIRECTORY_LABEL,7,157,38,10
+    EDITTEXT        IDC_RUNTOOLS_DIRECTORY,49,154,215,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_RUNTOOLS_BROWSE_DIRECTORY,269,154,30,14
+    LTEXT           "组名:",IDC_STATIC,7,177,34,10
+    EDITTEXT        IDC_RUNTOOLS_GROUP,49,174,250,14,ES_AUTOHSCROLL
+    LTEXT           "插入文本：",IDC_RUNTOOLS_MACRO_LABEL,7,194,53,10
+    COMBOBOX        IDC_RUNTOOLS_MACRO,79,192,99,120,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "插入",IDC_RUNTOOLS_INSERT_MACRO,186,191,43,13
+    AUTOCHECKBOX       "捕获输出(&C)",IDC_RUNTOOLS_CAPTURE,237,192,61,10
+    LTEXT           "运行预览:",IDC_RUNTOOLS_COMMANDLINE_LABEL,7,213,40,10
+    EDITTEXT        IDC_RUNTOOLS_PREVIEW,49,210,249,14,ES_AUTOHSCROLL | ES_READONLY
+//    LTEXT           "起始目录:",IDC_RUNTOOLS_PREVIEW_LABEL,7,163,40,10
 //    EDITTEXT        IDC_RUNTOOLS_PREVIEW_DIRECTORY,49,160,249,14,ES_AUTOHSCROLL | ES_READONLY
-    DEFPUSHBUTTON   "确定",IDOK,194,162,50,14
-    PUSHBUTTON      "取消",IDCANCEL,248,162,50,14
+    DEFPUSHBUTTON   "确定",IDOK,194,230,50,14
+    PUSHBUTTON      "取消",IDCANCEL,248,230,50,14
 END
 
 IDD_OPENWITH DIALOGEX 0, 0, 228, 206
@@ -1488,34 +1494,58 @@ END
 STRINGTABLE
 BEGIN
     IDS_APPTITLE            "Notepad4"
-    IDS_APPTITLE_PASTEBOARD "Notepad4: 粘贴板"
-    IDS_APPTITLE_ELEVATED   "%s (管理员)"
-    IDS_UNTITLED            "未命名"
-    IDS_TITLEEXCERPT        "“%s”"
-    IDS_READONLY_FILE       "(只读文件)"
-    IDS_STATUSITEM_FORMAT   "行 %s / %s \n列 %s / %s \n字符 %s / %s \n选中 %s / %s \n选中行 %s \n找到 %s "
-    IDS_ZERO_LENGTH_MATCH   "^ 零宽度匹配"
-    IDS_LOADFILE            "正在载入“%s”..."
-    IDS_SAVEFILE            "正在保存“%s”..."
-    IDS_PRINTFILE           "正在打印页面 %s..."
-    IDS_SAVINGSETTINGS      "正在保存设置..."
-    IDS_LINKDESCRIPTION     "使用 Notepad4 编辑"
-    IDS_FILTER_ALL          "所有文件(*.*)|*.*|"
-    IDS_FILTER_EXE          "可执行文件(*.exe;*.com;*.bat;*.cmd;*.lnk;*.pif)|*.exe;*.com;*.bat;*.cmd;*.lnk;*.pif|所有文件(*.*)|*.*|"
+    IDS_APPTITLE_PASTEBOARD
+                        "Notepad4: 粘贴板"
+    IDS_APPTITLE_ELEVATED
+                        "%s (管理员)"
+    IDS_UNTITLED
+                        "未命名"
+    IDS_TITLEEXCERPT
+                        "“%s”"
+    IDS_READONLY_FILE
+                        "(只读文件)"
+    IDS_STATUSITEM_FORMAT
+                        "行 %s / %s \n列 %s / %s \n字符 %s / %s \n选中 %s / %s \n选中行 %s \n找到 %s "
+    IDS_ZERO_LENGTH_MATCH
+                        "^ 零宽度匹配"
+    IDS_LOADFILE
+                        "正在载入“%s”..."
+    IDS_SAVEFILE
+                        "正在保存“%s”..."
+    IDS_PRINTFILE
+                        "正在打印页面 %s..."
+    IDS_SAVINGSETTINGS
+                        "正在保存设置..."
+    IDS_LINKDESCRIPTION
+                        "使用 Notepad4 编辑"
+    IDS_FILTER_ALL
+                        "所有文件(*.*)|*.*|"
+    IDS_FILTER_EXE
+                        "可执行文件(*.exe;*.com;*.bat;*.cmd;*.lnk;*.pif)|*.exe;*.com;*.bat;*.cmd;*.lnk;*.pif|所有文件(*.*)|*.*|"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_READONLY_SAVE       "“%s”是只读的。是否保存到另一个文件？"
-    IDS_FILECHANGENOTIFY    "当前文件已被外部程序修改。是否重新载入？"
-    IDS_FILECHANGENOTIFY2   "当前文件已被删除。是否立即保存？"
-    IDS_SAVEDSETTINGS       "当前程序设置已被保存。"
-    IDS_CREATEINI_FAIL      "创建配置文件时出错。"
-    IDS_WRITEINI_FAIL       "写入设置到配置文件时出错。"
-    IDS_SETTINGSNOTSAVED    "没有找到现有的配置文件。\n若要保存您的样式修改，请立即保存(F7)，或者返回“自定义语法高亮(Ctrl+F12)”并导出您的样式配置。"
-    IDS_EXPORT_FAIL         "导出样式设置到“%s”时出错。"
-    IDS_READONLY_MODE       "(只读模式)"
-    IDS_BINARY_FILE_OPENED  "这不太像是一个文本文件，因此以只读模式打开，\n以防止意外的编辑造成文件损坏。"
+    IDS_READONLY_SAVE
+                        "“%s”是只读的。是否保存到另一个文件？"
+    IDS_FILECHANGENOTIFY
+                        "当前文件已被外部程序修改。是否重新载入？"
+    IDS_FILECHANGENOTIFY2
+                        "当前文件已被删除。是否立即保存？"
+    IDS_SAVEDSETTINGS
+                        "当前程序设置已被保存。"
+    IDS_CREATEINI_FAIL
+                        "创建配置文件时出错。"
+    IDS_WRITEINI_FAIL
+                        "写入设置到配置文件时出错。"
+    IDS_SETTINGSNOTSAVED
+                        "没有找到现有的配置文件。\n若要保存您的样式修改，请立即保存(F7)，或者返回“自定义语法高亮(Ctrl+F12)”并导出您的样式配置。"
+    IDS_EXPORT_FAIL
+                        "导出样式设置到“%s”时出错。"
+    IDS_READONLY_MODE
+                        "(只读模式)"
+    IDS_BINARY_FILE_OPENED
+                        "这不太像是一个文本文件，因此以只读模式打开，\n以防止意外的编辑造成文件损坏。"
     IDS_GOOGLE_SEARCH_URL   "https://www.google.com/search?q=%s"
     IDS_BING_SEARCH_URL     "https://www.bing.com/search?q=%s"
     IDS_WIKI_SEARCH_URL     "https://zh.wikipedia.org/wiki/Special:Search?search=%s"
@@ -1523,151 +1553,263 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_RUNTOOL_DIR_TITLE   "选择工具的起始目录"
-    IDS_FUNCTION_LIST_AUTO  "自动"
-    IDS_FUNCTION_LIST_EMPTY "当前文件中未找到函数定义。"
-    IDS_FUNCTION_LIST_FAILED "无法生成函数列表，可能是文件过大或内存不足。"
-    IDS_RUNTOOLS_PRESET_CUSTOM "自定义"
-    IDS_RUNTOOLS_PRESET_GCC "使用 GCC 编译当前文件"
+    IDS_RUNTOOL_DIR_TITLE
+                        "选择工具的起始目录"
+    IDS_FUNCTION_LIST_AUTO
+                        "自动"
+    IDS_FUNCTION_LIST_EMPTY
+                        "当前文件中未找到函数定义。"
+    IDS_FUNCTION_LIST_FAILED
+                        "无法生成函数列表，可能是文件过大或内存不足。"
+    IDS_RUNTOOLS_PRESET_CUSTOM
+                        "自定义"
+    IDS_RUNTOOLS_PRESET_GCC
+                        "使用 GCC 编译当前文件"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_FILTER_INI          "配置文件(*.ini)|*.ini|所有文件(*.*)|*.*|"
-    IDS_OPENWITH            "选择您收藏应用程序快捷方式的文件夹。"
-    IDS_FAVORITES           "选择您收藏文件快捷方式的文件夹。"
-    IDS_BACKSLASHHELP       "反斜线转义\n\n\\a\t警报 (BEL, ASCII 7)\n\\b\t退格 (BS, ASCII 8)\n\\e\t转义/中断 (ESC, ASCII 27 / 1B)\n\\f\t换页 (FF, ASCII 12 / 0C)\n\\n\t换行 (LF, ASCII 10 / 0A)\n\\r\t回车 (CR, ASCII 13 / 0D)\n\\t\t水平制表符 (HT, ASCII 9)\n\\v\t垂直制表符 (VT, ASCII 11 / 0B)\n\\uHHHH\t十六进制值\n\\xHH\t十六进制值\n\\\\\t反斜线"
-    IDS_REGEXPHELP          "通用正则表达式 (RegExp) 语法\n\n.\t任何字符\n^\t行开始\n$\t行结束\n\\<\t单词开始\n\\>\t单词结束\n[...]\t字符集合 ([abc]) 或字符范围 ([a-z])\n[^...]\t不在集合或范围中的字符\n\\d\t任何十进制数字\n\\D\t任何非数字字符\n\\s\t任何空白字符\n\\S\t任何非空白字符\n\\w\t任何单词字符\n\\W\t任何非单词字符\n\\x\t有其他特殊意义的转义字符\n\\xHH\t十六进制代码为 HH 的字符\n?\t匹配 0 或 1 次\n*\t匹配 0 次或多次\n+\t匹配 1 次或多次\n*? 或 +?\t对限量词 ""?"" 和 ""+"" 做非贪婪匹配\n(\t区域开始\n)\t区域结束\n\\n 或 $n\t替换时引用的区域(n 为 1-9)\n\nBoost Perl 正则表达式语法:\na|b\t匹配 a 或 b。\n{n}\t精确匹配 n 次。\n{n,m}\t匹配 n 至 m 次。"
-    IDS_WILDCARDHELP        "通配符搜索\n\n*\t匹配 0 个或多个字符\n?\t匹配 1 个任意字符"
-    IDS_CMDLINEHELP         "命令行帮助\n\n文件\t必须是最后一个参数，无需使用双引号括起有空格的路径名。\n+\t多个文件参数 (需要使用双引号括起有空格的路径名)。\n-\t单个文件参数 (无需使用双引号括起有空格的路径名)。\n…\t编码 (/ansi, /unicode, /unicodele, /unicodebe,\n…\t/utf8, /utf8sig, /utf8bom, /utf16, /utf16le, /utf16be)。\n…\t换行符 (/crlf, /lf, /cr)。\n/e 编码\t文件编码。\n/g 行[,列]\t跳转到指定位置 (/g -1 转到文件末尾)。\n/m 文本\t匹配文本 (/m- 向上查找, /mr 正则表达式, /mb 反斜线转义)。\n/l[o]\t自动重载修改的文件。\n/q\t强制创建新文件而不提示。\n/ro\t以只读模式打开文件。\n/p\t使用默认打印机和选项打印文件。\n/s 名称\t选择指定的文件类型。\n/d\t指定为 文本文件。\n/h\t指定为 Web 源代码。\n/x\t指定为 XML 文档。\n/c\t打开新窗口并粘贴剪贴板中的内容。\n/b\t打开新的粘贴板来接收剪贴板中的内容。\n/n\t始终打开一个新窗口 (/ns 单文件实例模式)。\n/r\t重用窗口 (/rs 单文件实例模式)。\n/p<标记>\t设置窗口大小和位置 (/p0, /ps, /pf,l,t,r,b,m)。\n/t 标题\t设置窗口标题。\n/i\t启动时最小化到托盘。\n/o\t保持在最前面。\n/u\t以管理员身份运行。\n/z\t跳过下个参数 (对基于注册表的记事本替换有用)。"
+    IDS_FILTER_INI
+                        "配置文件(*.ini)|*.ini|所有文件(*.*)|*.*|"
+    IDS_OPENWITH
+                        "选择您收藏应用程序快捷方式的文件夹。"
+    IDS_FAVORITES
+                        "选择您收藏文件快捷方式的文件夹。"
+    IDS_BACKSLASHHELP
+                        "反斜线转义\n\n\\a\t警报 (BEL, ASCII 7)\n\\b\t退格 (BS, ASCII 8)\n\\e\t转义/中断 (ESC, ASCII 27 / 1B)\n\\f\t换页 (FF, ASCII 12 / 0C)\n\\n\t换行 (LF, ASCII 10 / 0A)\n\\r\t回车 (CR, ASCII 13 / 0D)\n\\t\t水平制表符 (HT, ASCII 9)\n\\v\t垂直制表符 (VT, ASCII 11 / 0B)\n\\uHHHH\t十六进制值\n\\xHH\t十六进制值\n\\\\\t反斜线"
+    IDS_REGEXPHELP
+                        "通用正则表达式 (RegExp) 语法\n\n.\t任何字符\n^\t行开始\n$\t行结束\n\\<\t单词开始\n\\>\t单词结束\n[...]\t字符集合 ([abc]) 或字符范围 ([a-z])\n[^...]\t不在集合或范围中的字符\n\\d\t任何十进制数字\n\\D\t任何非数字字符\n\\s\t任何空白字符\n\\S\t任何非空白字符\n\\w\t任何单词字符\n\\W\t任何非单词字符\n\\x\t有其他特殊意义的转义字符\n\\xHH\t十六进制代码为 HH 的字符\n?\t匹配 0 或 1 次\n*\t匹配 0 次或多次\n+\t匹配 1 次或多次\n*? 或 +?\t对限量词 ""?"" 和 ""+"" 做非贪婪匹配\n(\t区域开始\n)\t区域结束\n\\n 或 $n\t替换时引用的区域(n 为 1-9)\n\nBoost Perl 正则表达式语法:\na|b\t匹配 a 或 b。\n{n}\t精确匹配 n 次。\n{n,m}\t匹配 n 至 m 次。"
+    IDS_WILDCARDHELP
+                        "通配符搜索\n\n*\t匹配 0 个或多个字符\n?\t匹配 1 个任意字符"
+    IDS_CMDLINEHELP
+                        "命令行帮助\n\n文件\t必须是最后一个参数，无需使用双引号括起有空格的路径名。\n+\t多个文件参数 (需要使用双引号括起有空格的路径名)。\n-\t单个文件参数 (无需使用双引号括起有空格的路径名)。\n…\t编码 (/ansi, /unicode, /unicodele, /unicodebe,\n…\t/utf8, /utf8sig, /utf8bom, /utf16, /utf16le, /utf16be)。\n…\t换行符 (/crlf, /lf, /cr)。\n/e 编码\t文件编码。\n/g 行[,列]\t跳转到指定位置 (/g -1 转到文件末尾)。\n/m 文本\t匹配文本 (/m- 向上查找, /mr 正则表达式, /mb 反斜线转义)。\n/l[o]\t自动重载修改的文件。\n/q\t强制创建新文件而不提示。\n/ro\t以只读模式打开文件。\n/p\t使用默认打印机和选项打印文件。\n/s 名称\t选择指定的文件类型。\n/d\t指定为 文本文件。\n/h\t指定为 Web 源代码。\n/x\t指定为 XML 文档。\n/c\t打开新窗口并粘贴剪贴板中的内容。\n/b\t打开新的粘贴板来接收剪贴板中的内容。\n/n\t始终打开一个新窗口 (/ns 单文件实例模式)。\n/r\t重用窗口 (/rs 单文件实例模式)。\n/p<标记>\t设置窗口大小和位置 (/p0, /ps, /pf,l,t,r,b,m)。\n/t 标题\t设置窗口标题。\n/i\t启动时最小化到托盘。\n/o\t保持在最前面。\n/u\t以管理员身份运行。\n/z\t跳过下个参数 (对基于注册表的记事本替换有用)。"
 END
 
 STRINGTABLE
 BEGIN
-    IDT_FILE_NEW            "新建"
-    IDT_FILE_OPEN           "打开"
-    IDT_FILE_BROWSE         "浏览"
-    IDT_FILE_SAVE           "保存"
-    IDT_EDIT_UNDO           "撤销"
-    IDT_EDIT_REDO           "重做"
-    IDT_EDIT_CUT            "剪切"
-    IDT_EDIT_COPY           "复制"
+    IDT_FILE_NEW
+                        "新建"
+    IDT_FILE_OPEN
+                        "打开"
+    IDT_FILE_BROWSE
+                        "浏览"
+    IDT_FILE_SAVE
+                        "保存"
+    IDT_EDIT_UNDO
+                        "撤销"
+    IDT_EDIT_REDO
+                        "重做"
+    IDT_EDIT_CUT
+                        "剪切"
+    IDT_EDIT_COPY
+                        "复制"
 END
 
 STRINGTABLE
 BEGIN
-    IDT_EDIT_PASTE          "粘贴"
-    IDT_EDIT_FIND           "查找"
-    IDT_EDIT_REPLACE        "替换"
-    IDT_VIEW_WORDWRAP       "自动换行"
-    IDT_VIEW_ZOOMIN         "放大"
-    IDT_VIEW_ZOOMOUT        "缩小"
-    IDT_VIEW_SCHEME         "选择语法高亮"
-    IDT_VIEW_SCHEMECONFIG   "自定义语法高亮"
-    IDT_FILE_EXIT           "退出"
-    IDT_FILE_SAVEAS         "另存为"
-    IDT_FILE_SAVECOPY       "保存副本"
-    IDT_EDIT_DELETE         "删除"
-    IDT_FILE_PRINT          "打印"
-    IDT_FILE_OPENFAV        "收藏夹"
-    IDT_FILE_ADDTOFAV       "添加到收藏夹"
-    IDT_VIEW_TOGGLEFOLDS    "切换折叠"
+    IDT_EDIT_PASTE
+                        "粘贴"
+    IDT_EDIT_FIND
+                        "查找"
+    IDT_EDIT_REPLACE
+                        "替换"
+    IDT_VIEW_WORDWRAP
+                        "自动换行"
+    IDT_VIEW_ZOOMIN
+                        "放大"
+    IDT_VIEW_ZOOMOUT
+                        "缩小"
+    IDT_VIEW_SCHEME
+                        "选择语法高亮"
+    IDT_VIEW_SCHEMECONFIG
+                        "自定义语法高亮"
+    IDT_FILE_EXIT
+                        "退出"
+    IDT_FILE_SAVEAS
+                        "另存为"
+    IDT_FILE_SAVECOPY
+                        "保存副本"
+    IDT_EDIT_DELETE
+                        "删除"
+    IDT_FILE_PRINT
+                        "打印"
+    IDT_FILE_OPENFAV
+                        "收藏夹"
+    IDT_FILE_ADDTOFAV
+                        "添加到收藏夹"
+    IDT_VIEW_TOGGLEFOLDS
+                        "切换折叠"
 END
 
 STRINGTABLE
 BEGIN
-    IDT_FILE_LAUNCH         "运行文件"
-    IDT_VIEW_ALWAYSONTOP    "始终置顶"
+    IDT_FILE_LAUNCH
+                        "运行文件"
+    IDT_VIEW_ALWAYSONTOP
+                        "始终置顶"
 END
-//工具栏图标 添加。
 STRINGTABLE
 BEGIN
-    IDT_EDIT_MOVE_BLOCK_LEFT    "列块左移"
-    IDT_EDIT_MOVE_BLOCK_RIGHT   "列块右移"
-    IDT_EDIT_COLUMN_INSERT_BEFORE"列前插入"
-    IDT_EDIT_COLUMN_INSERT_AFTER"列后插入"
-    IDT_EDIT_INDENT             "增加缩进"
-    IDT_EDIT_UNINDENT           "减少缩进"
-    IDT_EDIT_LINECOMMENT        "行注释"
-    IDT_EDIT_STREAMCOMMENT      "块注释"
-    IDT_EDIT_SELECTALL          "全选"
-    IDT_EDIT_DUPLICATELINE      "重复当前行"
-    IDT_EDIT_DELETELINE         "删除当前行"
-    IDT_EDIT_MOVELINEUP         "上移当前行"
-    IDT_EDIT_MOVELINEDOWN       "下移当前行"
-    IDT_EDIT_JOINLINES          "合并行"
-    IDT_EDIT_SORTLINES          "排序列行"
-    IDT_EDIT_TRIMLINES          "修剪行首尾空白"
-    IDT_EDIT_REMOVEBLANKLINES   "删除空行"
-    IDT_EDIT_CONVERTUPPERCASE   "转为大写"
-    IDT_EDIT_CONVERTLOWERCASE   "转为小写"
-    IDT_EDIT_INSERT_SHORTDATE   "插入日期"
-    IDT_EDIT_FINDNEXT           "查找下一个"
-    IDT_EDIT_GOTOLINE           "转到指定行"
-    IDT_EDIT_FINDMATCHINGBRACE  "匹配括号"
-    IDT_FILE_OPENWITH           "打开方式"
-    IDT_FILE_RUN                "运行命令"
-    IDT_FILE_RECENT             "最近使用的文件"
-    IDT_FILE_PROPERTIES         "文件属性"
-    IDT_VIEW_RESETZOOM          "重置缩放"
-    IDT_VIEW_LINENUMBERS        "显示行号栏"
-    IDT_VIEW_SHOWWHITESPACE     "显示空白字符"
-    IDT_VIEW_SHOWEOLS           "显示行尾符"
-    IDT_VIEW_SHOWINDENTGUIDES   "显示缩进参考线"
-    IDT_VIEW_LONGLINEMARKER     "显示长行标记"
-    IDT_VIEW_TOGGLE_FULLSCREEN  "全屏模式"
-END
-
-STRINGTABLE
-BEGIN
-    IDS_ERR_LOADFILE        "加载“%s”时出错"
-    IDS_ERR_SAVEFILE        "保存“%s”时出错"
-    IDS_ERR_BROWSE          "没有找到文件浏览器插件。\nmatepath 文件浏览器插件可以从如下地址下载:\nhttps://github.com/zufuliu/notepad4/releases\n\n是否立即打开下载页面？"
-    IDS_ERR_MRUDLG          "没有权限访问选中的文件！\n要从列表中移除它吗？"
-    IDS_ERR_CREATELINK      "创建桌面快捷方式时出错。"
-    IDS_ERR_PREVWINDISABLED "现有的 Notepad4 窗口正忙或有一个活动的对话框。\n要打开一个新的窗口吗？"
-    IDS_SELRECT             "此操作不能在矩形选区内执行。"
-    IDS_BUFFERTOOSMALL      "此操作不能执行(行太长)。"
-    IDS_FIND_WRAPFW         "已到文档末尾，从文档开头重新搜索。"
-    IDS_FIND_WRAPRE         "已到文档开头，从文档最后重新搜索。"
-    IDS_NOTFOUND            "未找到指定的文本。"
-    IDS_REPLCOUNT           "找到的 %s 处指定文本已经替换。"
-    IDS_ASK_ENCODING        "将文件编码从 ANSI 切换到非 ANSI (或反之)可能将不支持的字符替换为默认字符，并且编辑历史将被清除。要继续吗？"
-    IDS_ASK_ENCODING2       "您即将更改一个空文件的编码，从 ANSI 到非 ANSI。请注意，这将清除编辑历史，因历史记录无法与新的编码同步。要继续吗？"
-    IDS_ERR_ENCODINGNA      "您的系统上没有所选编码的代码页转换表。"
-    IDS_ERR_UNICODE         "转换该 Unicode 文件时出错。\n如果保存该文件，数据将会丢失！"
-END
-
-STRINGTABLE
-BEGIN
-    IDS_ERR_UNICODE2        "当前文本中的某些字符在所选编码中不支持，如果保存将可能被替换为默认的占位字符。推荐选择其他文件编码。要继续吗？"
-    IDS_WARNLOADBIGFILE     "加载文件: %s\n\n此文件太大(%s，%s 字节)。\n当前可加载的最大文件大小为 %s (%s 字节)。"
-    IDS_ERR_RUNTOOL         "无法启动运行工具“%s”。"
-    IDS_ASK_SAVE            "保存修改到“%s”？"
-    IDS_ASK_REVERT          "还原文件到上次保存时的状态？您的修改将会丢失！"
-    IDS_ASK_RECODE          "重新编码需要从磁盘重新加载文件，未保存的修改将会丢失！"
-    IDS_ASK_CREATE          "“%s”未找到。\n是否创建此文件？"
-    IDS_PRINT_HEADER        "文件名，当前日期和时间|文件名，当前日期|文件名|留空"
-    IDS_PRINT_FOOTER        "页号|留空"
-    IDS_PRINT_COLOR         "正常|反色(暗背景)|白底黑字|白底彩色|白底彩色(行号除外)|当前屏幕颜色(所见即所得)"
-    IDS_PRINT_PAGENUM       "第 %s 页"
-    IDS_PRINT_ERROR         "打印“%s”时出错！"
-    IDS_FAV_SUCCESS         "已在收藏夹中创建一个当前文件的快捷方式。"
-    IDS_FAV_FAILURE         "未能创建当前文件的快捷方式。\n请检查是否已有同名文件。"
-    IDS_READONLY_MODIFY     "不能修改“%s”的属性。"
+    IDT_EDIT_MOVE_BLOCK_LEFT
+                        "列块左移"
+    IDT_EDIT_MOVE_BLOCK_RIGHT
+                        "列块右移"
+    IDT_EDIT_COLUMN_INSERT_BEFORE
+                        "列前插入"
+    IDT_EDIT_COLUMN_INSERT_AFTER
+                        "列后插入"
+    IDT_EDIT_INDENT
+                        "增加缩进"
+    IDT_EDIT_UNINDENT
+                        "减少缩进"
+    IDT_EDIT_LINECOMMENT
+                        "行注释"
+    IDT_EDIT_STREAMCOMMENT
+                        "块注释"
+    IDT_EDIT_SELECTALL
+                        "全选"
+    IDT_EDIT_DUPLICATELINE
+                        "重复当前行"
+    IDT_EDIT_DELETELINE
+                        "删除当前行"
+    IDT_EDIT_MOVELINEUP
+                        "上移当前行"
+    IDT_EDIT_MOVELINEDOWN
+                        "下移当前行"
+    IDT_EDIT_JOINLINES
+                        "合并行"
+    IDT_EDIT_SORTLINES
+                        "排序列行"
+    IDT_EDIT_TRIMLINES
+                        "修剪行首尾空白"
+    IDT_EDIT_REMOVEBLANKLINES
+                        "删除空行"
+    IDT_EDIT_CONVERTUPPERCASE
+                        "转为大写"
+    IDT_EDIT_CONVERTLOWERCASE
+                        "转为小写"
+    IDT_EDIT_INSERT_SHORTDATE
+                        "插入日期"
+    IDT_EDIT_FINDNEXT
+                        "查找下一个"
+    IDT_EDIT_GOTOLINE
+                        "转到指定行"
+    IDT_EDIT_FINDMATCHINGBRACE
+                        "匹配括号"
+    IDT_FILE_OPENWITH
+                        "打开方式"
+    IDT_FILE_RUN
+                        "运行命令"
+    IDT_FILE_RECENT
+                        "最近使用的文件"
+    IDT_FILE_PROPERTIES
+                        "文件属性"
+    IDT_VIEW_RESETZOOM
+                        "重置缩放"
+    IDT_VIEW_LINENUMBERS
+                        "显示行号栏"
+    IDT_VIEW_SHOWWHITESPACE
+                        "显示空白字符"
+    IDT_VIEW_SHOWEOLS
+                        "显示行尾符"
+    IDT_VIEW_SHOWINDENTGUIDES
+                        "显示缩进参考线"
+    IDT_VIEW_LONGLINEMARKER
+                        "显示长行标记"
+    IDT_VIEW_TOGGLE_FULLSCREEN
+                        "全屏模式"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_RUNTOOLS_PRESET_RUN "运行当前程序"
-    IDS_RUNTOOLS_PRESET_LABEL "预设："
-    IDS_RUNTOOLS_MACRO_LABEL "插入文本："
-    IDS_RUNTOOLS_INSERT_MACRO "插入"
-    IDS_RUNTOOLS_PREVIEW_LABEL "运行目录:"
-    IDS_RUNTOOLS_COMMANDLINE_LABEL "运行预览:"
-    IDS_RUNTOOLS_DIRECTORY_LABEL "起始目录:"
-    IDS_RUNTOOLS_TEST       "测试(&T)"
-    IDS_RUNTOOLS_STARTED    "已启动外部程序。"
+    IDS_ERR_LOADFILE
+                        "加载“%s”时出错"
+    IDS_ERR_SAVEFILE
+                        "保存“%s”时出错"
+    IDS_ERR_BROWSE
+                        "没有找到文件浏览器插件。\nmatepath 文件浏览器插件可以从如下地址下载:\nhttps://github.com/zufuliu/notepad4/releases\n\n是否立即打开下载页面？"
+    IDS_ERR_MRUDLG
+                        "没有权限访问选中的文件！\n要从列表中移除它吗？"
+    IDS_ERR_CREATELINK
+                        "创建桌面快捷方式时出错。"
+    IDS_ERR_PREVWINDISABLED
+                        "现有的 Notepad4 窗口正忙或有一个活动的对话框。\n要打开一个新的窗口吗？"
+    IDS_SELRECT
+                        "此操作不能在矩形选区内执行。"
+    IDS_BUFFERTOOSMALL
+                        "此操作不能执行(行太长)。"
+    IDS_FIND_WRAPFW
+                        "已到文档末尾，从文档开头重新搜索。"
+    IDS_FIND_WRAPRE
+                        "已到文档开头，从文档最后重新搜索。"
+    IDS_NOTFOUND
+                        "未找到指定的文本。"
+    IDS_REPLCOUNT
+                        "找到的 %s 处指定文本已经替换。"
+    IDS_ASK_ENCODING
+                        "将文件编码从 ANSI 切换到非 ANSI (或反之)可能将不支持的字符替换为默认字符，并且编辑历史将被清除。要继续吗？"
+    IDS_ASK_ENCODING2
+                        "您即将更改一个空文件的编码，从 ANSI 到非 ANSI。请注意，这将清除编辑历史，因历史记录无法与新的编码同步。要继续吗？"
+    IDS_ERR_ENCODINGNA
+                        "您的系统上没有所选编码的代码页转换表。"
+    IDS_ERR_UNICODE
+                        "转换该 Unicode 文件时出错。\n如果保存该文件，数据将会丢失！"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ERR_UNICODE2
+                        "当前文本中的某些字符在所选编码中不支持，如果保存将可能被替换为默认的占位字符。推荐选择其他文件编码。要继续吗？"
+    IDS_WARNLOADBIGFILE
+                        "加载文件: %s\n\n此文件太大(%s，%s 字节)。\n当前可加载的最大文件大小为 %s (%s 字节)。"
+    IDS_ERR_RUNTOOL
+                        "无法启动运行工具“%s”。"
+    IDS_ASK_SAVE
+                        "保存修改到“%s”？"
+    IDS_ASK_REVERT
+                        "还原文件到上次保存时的状态？您的修改将会丢失！"
+    IDS_ASK_RECODE
+                        "重新编码需要从磁盘重新加载文件，未保存的修改将会丢失！"
+    IDS_ASK_CREATE
+                        "“%s”未找到。\n是否创建此文件？"
+    IDS_PRINT_HEADER
+                        "文件名，当前日期和时间|文件名，当前日期|文件名|留空"
+    IDS_PRINT_FOOTER
+                        "页号|留空"
+    IDS_PRINT_COLOR
+                        "正常|反色(暗背景)|白底黑字|白底彩色|白底彩色(行号除外)|当前屏幕颜色(所见即所得)"
+    IDS_PRINT_PAGENUM
+                        "第 %s 页"
+    IDS_PRINT_ERROR
+                        "打印“%s”时出错！"
+    IDS_FAV_SUCCESS
+                        "已在收藏夹中创建一个当前文件的快捷方式。"
+    IDS_FAV_FAILURE
+                        "未能创建当前文件的快捷方式。\n请检查是否已有同名文件。"
+    IDS_READONLY_MODIFY
+                        "不能修改“%s”的属性。"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_RUNTOOLS_PRESET_RUN
+                        "运行当前程序"
+    IDS_RUNTOOLS_PRESET_LABEL
+                        "预设："
+    IDS_RUNTOOLS_MACRO_LABEL
+                        "插入文本："
+    IDS_RUNTOOLS_INSERT_MACRO
+                        "插入"
+    IDS_RUNTOOLS_PREVIEW_LABEL
+                        "运行目录:"
+    IDS_RUNTOOLS_COMMANDLINE_LABEL
+                        "运行预览:"
+    IDS_RUNTOOLS_DIRECTORY_LABEL
+                        "起始目录:"
+    IDS_RUNTOOLS_TEST
+                        "测试(&T)"
+    IDS_RUNTOOLS_STARTED
+                        "已启动外部程序。"
 
 END
 
@@ -1675,169 +1817,266 @@ STRINGTABLE
 BEGIN
     IDS_ENCODING_ANSI       "ANSI;ANSI"
     IDS_ENCODING_OEM        "OEM;OEM"
-    IDS_ENCODING_UTF16LE_BOM "UTF-16LE 带 BOM;UTF-16LE BOM"
-    IDS_ENCODING_UTF16BE_BOM "UTF-16BE 带 BOM;UTF-16BE BOM"
+    IDS_ENCODING_UTF16LE_BOM
+                        "UTF-16LE 带 BOM;UTF-16LE BOM"
+    IDS_ENCODING_UTF16BE_BOM
+                        "UTF-16BE 带 BOM;UTF-16BE BOM"
     IDS_ENCODING_UTF16LE    "UTF-16LE;UTF-16LE"
     IDS_ENCODING_UTF16BE    "UTF-16BE;UTF-16BE"
     IDS_ENCODING_UTF8       "UTF-8;UTF-8"
-    IDS_ENCODING_UTF8BOM    "UTF-8 带 BOM;UTF-8 BOM"
+    IDS_ENCODING_UTF8BOM
+                        "UTF-8 带 BOM;UTF-8 BOM"
 END
 
 STRINGTABLE
 BEGIN
     IDS_ENCODING_UTF7       "UTF-7;UTF-7"
-    IDS_ENCODING_DOS720     "透明 ASMO (DOS-720);DOS-720"
-    IDS_ENCODING_ISO8859_6  "ISO 8859-6 (视觉顺序);ISO 8859-6"
-    IDS_ENCODING_ISO8859_6I "ISO 8859-6-I (逻辑顺序);ISO 8859-6-I"
+    IDS_ENCODING_DOS720
+                        "透明 ASMO (DOS-720);DOS-720"
+    IDS_ENCODING_ISO8859_6
+                        "ISO 8859-6 (视觉顺序);ISO 8859-6"
+    IDS_ENCODING_ISO8859_6I
+                        "ISO 8859-6-I (逻辑顺序);ISO 8859-6-I"
     IDS_ENCODING_WINDOWS1256 "Windows-1256;Windows-1256"
-    IDS_ENCODING_DOS775     "OEM 波罗的语(DOS-775);DOS-775"
-    IDS_ENCODING_ISO8859_4  "波罗的语(Latin-4, ISO 8859-4);ISO 8859-4"
-    IDS_ENCODING_WINDOWS1257 "ANSI 波罗的语(Windows-1257);Windows-1257"
+    IDS_ENCODING_DOS775
+                        "OEM 波罗的语(DOS-775);DOS-775"
+    IDS_ENCODING_ISO8859_4
+                        "波罗的语(Latin-4, ISO 8859-4);ISO 8859-4"
+    IDS_ENCODING_WINDOWS1257
+                        "ANSI 波罗的语(Windows-1257);Windows-1257"
     IDS_ENCODING_DOS852     "OEM Latin-2 (DOS-852);DOS-852"
     IDS_ENCODING_ISO8859_2  "Latin-2 (ISO 8859-2);ISO 8859-2"
     IDS_ENCODING_MAC_LATIN2 "Mac Latin-2;Mac Latin-2"
     IDS_ENCODING_WINDOWS1250 "Latin-2 (Windows-1250);Windows-1250"
-    IDS_ENCODING_GBK        "简体中文(GBK, GB2312);GBK"
-    IDS_ENCODING_GB18030    "简体中文(GB18030);GB18030"
-    IDS_ENCODING_BIG5       "繁体中文(Big5, Big5-HKSCS);Big5"
+    IDS_ENCODING_GBK
+                        "简体中文(GBK, GB2312);GBK"
+    IDS_ENCODING_GB18030
+                        "简体中文(GB18030);GB18030"
+    IDS_ENCODING_BIG5
+                        "繁体中文(Big5, Big5-HKSCS);Big5"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_ENCODING_MAC_CROATIAN "Mac 克罗地亚语;Mac 克罗地亚语"
-    IDS_ENCODING_DOS866     "OEM 俄语(DOS-866);DOS-866"
+    IDS_ENCODING_MAC_CROATIAN
+                        "Mac 克罗地亚语;Mac 克罗地亚语"
+    IDS_ENCODING_DOS866
+                        "OEM 俄语(DOS-866);DOS-866"
     IDS_ENCODING_ISO8859_5  "ISO 8859-5;ISO 8859-5"
-    IDS_ENCODING_KOI8_R     "俄语(KOI8-R);KOI8-R"
-    IDS_ENCODING_KOI8_U     "乌克兰语(KOI8-U);KOI8-U"
-    IDS_ENCODING_MAC_CYRILLIC "Mac 西里尔文;Mac 西里尔文"
+    IDS_ENCODING_KOI8_R
+                        "俄语(KOI8-R);KOI8-R"
+    IDS_ENCODING_KOI8_U
+                        "乌克兰语(KOI8-U);KOI8-U"
+    IDS_ENCODING_MAC_CYRILLIC
+                        "Mac 西里尔文;Mac 西里尔文"
     IDS_ENCODING_WINDOWS1251 "Windows-1251;Windows-1251"
-    IDS_ENCODING_ISO8859_13 "爱沙尼亚语(波罗的海周边, Latin-7, ISO 8859-13);ISO 8859-13"
-    IDS_ENCODING_DOS863     "OEM 加拿大法语(DOS-863);DOS-863"
-    IDS_ENCODING_DOS737     "OEM 希腊语(DOS-737);DOS-737"
+    IDS_ENCODING_ISO8859_13
+                        "爱沙尼亚语(波罗的海周边, Latin-7, ISO 8859-13);ISO 8859-13"
+    IDS_ENCODING_DOS863
+                        "OEM 加拿大法语(DOS-863);DOS-863"
+    IDS_ENCODING_DOS737
+                        "OEM 希腊语(DOS-737);DOS-737"
     IDS_ENCODING_ISO8859_7  "ISO 8859-7;ISO 8859-7"
-    IDS_ENCODING_MAC_GREEK  "Mac 希腊语;Mac 希腊语"
+    IDS_ENCODING_MAC_GREEK
+                        "Mac 希腊语;Mac 希腊语"
     IDS_ENCODING_WINDOWS1253 "Windows-1253;Windows-1253"
-    IDS_ENCODING_DOS869     "OEM 现代希腊语(DOS-869);DOS-869"
-    IDS_ENCODING_DOS862     "OEM 希伯来语(DOS-862);DOS-862"
-    IDS_ENCODING_ISO8859_8I "ISO 8859-8-I (逻辑顺序);ISO 8859-8-I"
+    IDS_ENCODING_DOS869
+                        "OEM 现代希腊语(DOS-869);DOS-869"
+    IDS_ENCODING_DOS862
+                        "OEM 希伯来语(DOS-862);DOS-862"
+    IDS_ENCODING_ISO8859_8I
+                        "ISO 8859-8-I (逻辑顺序);ISO 8859-8-I"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_ENCODING_ISO8859_8  "ISO 8859-8 (视觉顺序);ISO 8859-8"
-    IDS_ENCODING_MAC_HEBREW "Mac 希伯来语;Mac 希伯来语"
+    IDS_ENCODING_ISO8859_8
+                        "ISO 8859-8 (视觉顺序);ISO 8859-8"
+    IDS_ENCODING_MAC_HEBREW
+                        "Mac 希伯来语;Mac 希伯来语"
     IDS_ENCODING_WINDOWS1255 "Windows-1255;Windows-1255"
-    IDS_ENCODING_DOS861     "OEM 冰岛语(DOS-861);DOS-861"
-    IDS_ENCODING_MAC_ICELANDIC "Mac 冰岛语;Mac 冰岛语"
-    IDS_ENCODING_ISO2022_JP "ISO 2022 (无半宽片假名);ISO-2022-JP"
+    IDS_ENCODING_DOS861
+                        "OEM 冰岛语(DOS-861);DOS-861"
+    IDS_ENCODING_MAC_ICELANDIC
+                        "Mac 冰岛语;Mac 冰岛语"
+    IDS_ENCODING_ISO2022_JP
+                        "ISO 2022 (无半宽片假名);ISO-2022-JP"
     IDS_ENCODING_SHIFT_JIS  "Shift-JIS;Shift-JIS"
     IDS_ENCODING_JOHAB      "Johab;Johab"
-    IDS_ENCODING_UHC        "统一韩文/朝鲜文代码;UHC"
-    IDS_ENCODING_ISO8859_3  "欧洲南部(Latin-3, ISO 8859-3);ISO 8859-3"
+    IDS_ENCODING_UHC
+                        "统一韩文/朝鲜文代码;UHC"
+    IDS_ENCODING_ISO8859_3
+                        "欧洲南部(Latin-3, ISO 8859-3);ISO 8859-3"
     IDS_ENCODING_ISO8859_15 "Latin-9 (ISO 8859-15);ISO 8859-15"
-    IDS_ENCODING_ISO8859_10 "北欧(Latin-6, ISO 8859-10);ISO 8859-10"
-    IDS_ENCODING_EUC_JP     "EUC 日语;EUC-JP"
-    IDS_ENCODING_EUC_KR     "EUC 韩语;EUC-KR"
-    IDS_ENCODING_ISO8859_16 "欧洲东南(Latin-10, ISO 8859-16);ISO 8859-16"
-    IDS_ENCODING_ISO8859_14 "塞尔特语(Latin-8, ISO 8859-14);ISO 8859-14"
+    IDS_ENCODING_ISO8859_10
+                        "北欧(Latin-6, ISO 8859-10);ISO 8859-10"
+    IDS_ENCODING_EUC_JP
+                        "EUC 日语;EUC-JP"
+    IDS_ENCODING_EUC_KR
+                        "EUC 韩语;EUC-KR"
+    IDS_ENCODING_ISO8859_16
+                        "欧洲东南(Latin-10, ISO 8859-16);ISO 8859-16"
+    IDS_ENCODING_ISO8859_14
+                        "塞尔特语(Latin-8, ISO 8859-14);ISO 8859-14"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_ENCODING_MAC_THAI   "Mac 泰语;Mac 泰语"
-    IDS_ENCODING_TIS620     "泰语(TIS-620, Windows-874, ISO 8859-11);TIS-620"
-    IDS_ENCODING_DOS857     "OEM 土耳其语(DOS-857);DOS-857"
+    IDS_ENCODING_MAC_THAI
+                        "Mac 泰语;Mac 泰语"
+    IDS_ENCODING_TIS620
+                        "泰语(TIS-620, Windows-874, ISO 8859-11);TIS-620"
+    IDS_ENCODING_DOS857
+                        "OEM 土耳其语(DOS-857);DOS-857"
     IDS_ENCODING_ISO8859_9  "Latin-9 (ISO 8859-15);ISO 8859-15"
-    IDS_ENCODING_MAC_TURKISH "Mac 土耳其语;Mac 土耳其语"
+    IDS_ENCODING_MAC_TURKISH
+                        "Mac 土耳其语;Mac 土耳其语"
     IDS_ENCODING_WINDOWS1254 "Windows-1254;Windows-1254"
-    IDS_ENCODING_MAC_UKRAINIAN "Mac 乌克兰语;Mac 乌克兰语"
-    IDS_ENCODING_WINDOWS1258 "越南语(Windows-1258);Windows-1258"
+    IDS_ENCODING_MAC_UKRAINIAN
+                        "Mac 乌克兰语;Mac 乌克兰语"
+    IDS_ENCODING_WINDOWS1258
+                        "越南语(Windows-1258);Windows-1258"
     IDS_ENCODING_DOS850     "OEM Latin-1 (DOS-850);DOS-850"
     IDS_ENCODING_ISO8859_1  "Latin-1 (ISO 8859-1);ISO 8859-1"
-    IDS_ENCODING_MAC_ROMAN  "Mac 罗马;Mac 罗马"
+    IDS_ENCODING_MAC_ROMAN
+                        "Mac 罗马;Mac 罗马"
     IDS_ENCODING_WINDOWS1252 "Latin-1 (Windows-1252);Windows-1252"
-    IDS_ENCODING_IBM037     "美国-加拿大(IBM037);EBCDIC (US-Canada)"
-    IDS_ENCODING_IBM1140    "美国-加拿大 + 欧元符号(IBM1140);EBCDIC (US-Canada Euro)"
-    IDS_ENCODING_IBM500     "国际码(IBM500);EBCDIC (Intl.)"
+    IDS_ENCODING_IBM037
+                        "美国-加拿大(IBM037);EBCDIC (US-Canada)"
+    IDS_ENCODING_IBM1140
+                        "美国-加拿大 + 欧元符号(IBM1140);EBCDIC (US-Canada Euro)"
+    IDS_ENCODING_IBM500
+                        "国际码(IBM500);EBCDIC (Intl.)"
     IDS_ENCODING_IBM870     "Latin-2 (IBM870);EBCDIC (Latin-2)"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_ENCODING_CP875      "现代希腊语(CP875);EBCDIC (Greek)"
-    IDS_ENCODING_IBM1026    "土耳其语(Latin-5) (IBM1026);EBCDIC (Latin-5)"
-    IDS_ENCODING_DOS437     "OEM 美国(DOS-437);DOS-437"
-    IDS_ENCODING_DOS858     "OEM Latin-1 + 欧元符号(DOS-858);DOS-858"
-    IDS_ENCODING_DOS860     "OEM 葡萄牙语(DOS-860);DOS-860"
-    IDS_ENCODING_MAC_ARABIC "Mac 阿拉伯语;Mac 阿拉伯语"
-    IDS_ENCODING_DOS864     "OEM 阿拉伯文(DOS-864);OEM 阿拉伯文"
-    IDS_ENCODING_MAC_ROMANIAN "Mac 罗马尼亚;Mac 罗马尼亚"
-    IDS_ENCODING_DOS865     "OEM 北欧(DOS-865);DOS-865"
-    IDS_ENCODING_IBM855     "OEM 西里尔语(俄语为主)(IBM855);OEM 西里尔语"
-    IDS_ENCODING_MAC_JAPANESE "Mac 日语;Mac 日语"
-    IDS_ENCODING_CS_ISO2022_JP "ISO 2022 (允许单字节假名);CS ISO-2022-JP"
+    IDS_ENCODING_CP875
+                        "现代希腊语(CP875);EBCDIC (Greek)"
+    IDS_ENCODING_IBM1026
+                        "土耳其语(Latin-5) (IBM1026);EBCDIC (Latin-5)"
+    IDS_ENCODING_DOS437
+                        "OEM 美国(DOS-437);DOS-437"
+    IDS_ENCODING_DOS858
+                        "OEM Latin-1 + 欧元符号(DOS-858);DOS-858"
+    IDS_ENCODING_DOS860
+                        "OEM 葡萄牙语(DOS-860);DOS-860"
+    IDS_ENCODING_MAC_ARABIC
+                        "Mac 阿拉伯语;Mac 阿拉伯语"
+    IDS_ENCODING_DOS864
+                        "OEM 阿拉伯文(DOS-864);OEM 阿拉伯文"
+    IDS_ENCODING_MAC_ROMANIAN
+                        "Mac 罗马尼亚;Mac 罗马尼亚"
+    IDS_ENCODING_DOS865
+                        "OEM 北欧(DOS-865);DOS-865"
+    IDS_ENCODING_IBM855
+                        "OEM 西里尔语(俄语为主)(IBM855);OEM 西里尔语"
+    IDS_ENCODING_MAC_JAPANESE
+                        "Mac 日语;Mac 日语"
+    IDS_ENCODING_CS_ISO2022_JP
+                        "ISO 2022 (允许单字节假名);CS ISO-2022-JP"
     IDS_ENCODING_ISO2022_JP_SOSI 
-                            "ISO 2022 (允许单字节假名 - SO/SI);ISO-2022-JP SO/SI"
-    IDS_ENCODING_MAC_KOREAN "Mac 韩语;Mac 韩语"
-    IDS_ENCODING_ISO2022_KR "ISO 2022 韩语;ISO-2022-KR"
-    IDS_ENCODING_MAC_GB2312 "简体中文(Mac);Mac GB-2312"
+                        "ISO 2022 (允许单字节假名 - SO/SI);ISO-2022-JP SO/SI"
+    IDS_ENCODING_MAC_KOREAN
+                        "Mac 韩语;Mac 韩语"
+    IDS_ENCODING_ISO2022_KR
+                        "ISO 2022 韩语;ISO-2022-KR"
+    IDS_ENCODING_MAC_GB2312
+                        "简体中文(Mac);Mac GB-2312"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_ENCODING_HZ_GB2312  "简体中文(HZ-GB2312);HZ-GB2312"
-    IDS_ENCODING_ISO2022_CNS "简体中文(ISO 2022);ISO-2022-CN(S)"
-    IDS_ENCODING_MAC_BIG5   "繁体中文(Mac);Mac Big5"
-    IDS_ENCODING_ISO2022_CNT "繁体中文(ISO 2022);ISO-2022-CN(T)"
-    IDS_ENCODING_CNS        "繁体中文(CNS);CNS"
+    IDS_ENCODING_HZ_GB2312
+                        "简体中文(HZ-GB2312);HZ-GB2312"
+    IDS_ENCODING_ISO2022_CNS
+                        "简体中文(ISO 2022);ISO-2022-CN(S)"
+    IDS_ENCODING_MAC_BIG5
+                        "繁体中文(Mac);Mac Big5"
+    IDS_ENCODING_ISO2022_CNT
+                        "繁体中文(ISO 2022);ISO-2022-CN(T)"
+    IDS_ENCODING_CNS
+                        "繁体中文(CNS);CNS"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_SELRECT_CURRENT_ENCODING "选择当前文件编码(&E): "
-    IDS_SELRECT_RELOAD_ENCODING "选择重新载入文件使用的编码: "
-    IDS_SELRECT_DEFAULT_ENCODING "选择新文件的默认编码: "
+    IDS_SELRECT_CURRENT_ENCODING
+                        "选择当前文件编码(&E): "
+    IDS_SELRECT_RELOAD_ENCODING
+                        "选择重新载入文件使用的编码: "
+    IDS_SELRECT_DEFAULT_ENCODING
+                        "选择新文件的默认编码: "
     IDS_ENCODINGGROUP_UNICODE "Unicode"
-    IDS_ENCODINGGROUP_WESTERNEURO "西欧"
-    IDS_ENCODINGGROUP_ARABIC "阿拉伯文"
-    IDS_ENCODINGGROUP_NORTHERNEURO "波罗的海和北欧"
-    IDS_ENCODINGGROUP_CENTRALEURO "中欧和东欧"
-    IDS_ENCODINGGROUP_CHINESE "中文"
-    IDS_ENCODINGGROUP_CYRILLIC "西里尔语"
-    IDS_ENCODINGGROUP_GREEK "希腊语"
-    IDS_ENCODINGGROUP_HEBREW "希伯来语"
-    IDS_ENCODINGGROUP_JAPANESE "日语"
-    IDS_ENCODINGGROUP_KOREAN "韩语/朝鲜语"
-    IDS_ENCODINGGROUP_SOUTHEURO "南欧"
-    IDS_ENCODINGGROUP_SOUTHASIA "东南亚"
+    IDS_ENCODINGGROUP_WESTERNEURO
+                        "西欧"
+    IDS_ENCODINGGROUP_ARABIC
+                        "阿拉伯文"
+    IDS_ENCODINGGROUP_NORTHERNEURO
+                        "波罗的海和北欧"
+    IDS_ENCODINGGROUP_CENTRALEURO
+                        "中欧和东欧"
+    IDS_ENCODINGGROUP_CHINESE
+                        "中文"
+    IDS_ENCODINGGROUP_CYRILLIC
+                        "西里尔语"
+    IDS_ENCODINGGROUP_GREEK
+                        "希腊语"
+    IDS_ENCODINGGROUP_HEBREW
+                        "希伯来语"
+    IDS_ENCODINGGROUP_JAPANESE
+                        "日语"
+    IDS_ENCODINGGROUP_KOREAN
+                        "韩语/朝鲜语"
+    IDS_ENCODINGGROUP_SOUTHEURO
+                        "南欧"
+    IDS_ENCODINGGROUP_SOUTHASIA
+                        "东南亚"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_ENCODINGGROUP_TURKISH "土耳其"
+    IDS_ENCODINGGROUP_TURKISH
+                        "土耳其"
     IDS_ENCODINGGROUP_EBCDIC "IBM EBCDIC"
 END
 
 STRINGTABLE
 BEGIN
     IDS_EOLMODENAME_CRLF    "Windows (CR+LF)"
-    IDS_EOLMODENAME_CR      "经典 Mac OS (CR)"
+    IDS_EOLMODENAME_CR
+                        "经典 Mac OS (CR)"
     IDS_EOLMODENAME_LF      "Unix/macOS (LF)"
-    IDS_CONFIG_THEME_TITLE_DEFAULT "自定义语法高亮 - 默认主题"
-    IDS_CONFIG_THEME_TITLE_DARK "自定义语法高亮 - 暗色主题"
-    IDS_FAVORITE_SCHEMES_TITLE "常用语法高亮"
+    IDS_CONFIG_THEME_TITLE_DEFAULT
+                        "自定义语法高亮 - 默认主题"
+    IDS_CONFIG_THEME_TITLE_DARK
+                        "自定义语法高亮 - 暗色主题"
+    IDS_FAVORITE_SCHEMES_TITLE
+                        "常用语法高亮"
     IDS_CUSTOMIZE_SCHEMES_HELP 
-                            "文件扩展名必须由分号(;)分隔\r\n\r\n样式格式:\r\n\tfont:Name; size:[+|-]nn.mm; weight:nnn; bold; italic;\r\n\tunderline; strike; overline; charset:dd; locale:Name;\r\n\tfore:#RRGGBB; back:#RRGGBB; alpha:aa; outline:aa; eolfilled;\r\n\r\n样式属性可以用复制并粘贴或者拖放来复制。\r\n\r\n“预览”按钮将不会应用任何更改。"
-    IDS_WRAP_INDENT_OPTIONS "换行无缩排|缩排 1 个字符|缩排 2 个字符|缩排 1 个缩进|缩排 2 个缩进|作为子行缩排|作为子行缩排 1 个缩进|作为子行缩排 2 个缩进"
-    IDS_WRAP_SYMBOL_BEFORE_OPTIONS "换行前无视觉指示|换行前显示视觉指示(靠近文本)|换行前显示视觉指示(靠近边缘)"
+                        "文件扩展名必须由分号(;)分隔\r\n\r\n样式格式:\r\n\tfont:Name; size:[+|-]nn.mm; weight:nnn; bold; italic;\r\n\tunderline; strike; overline; charset:dd; locale:Name;\r\n\tfore:#RRGGBB; back:#RRGGBB; alpha:aa; outline:aa; eolfilled;\r\n\r\n样式属性可以用复制并粘贴或者拖放来复制。\r\n\r\n“预览”按钮将不会应用任何更改。"
+    IDS_WRAP_INDENT_OPTIONS
+                        "换行无缩排|缩排 1 个字符|缩排 2 个字符|缩排 1 个缩进|缩排 2 个缩进|作为子行缩排|作为子行缩排 1 个缩进|作为子行缩排 2 个缩进"
+    IDS_WRAP_SYMBOL_BEFORE_OPTIONS
+                        "换行前无视觉指示|换行前显示视觉指示(靠近文本)|换行前显示视觉指示(靠近边缘)"
     IDS_WRAP_SYMBOL_AFTER_OPTIONS 
-                            "换行后无视觉指示|换行后显示视觉指示(靠近文本)|换行后显示视觉指示(靠近边缘)|换行后显示视觉指示(在行号列)"
-    IDS_WRAP_MODE_OPTIONS   "不换行|单词间换行|任何字符间换行|空白字符处换行|自动单词换行"
+                        "换行后无视觉指示|换行后显示视觉指示(靠近文本)|换行后显示视觉指示(靠近边缘)|换行后显示视觉指示(在行号列)"
+    IDS_WRAP_MODE_OPTIONS
+                        "不换行|单词间换行|任何字符间换行|空白字符处换行|自动单词换行"
     IDS_RUNTOOL_MENU_FALLBACK "Tool %u"
-    IDS_RUNTOOLS_PRESET_CMD "运行 CMD.EXE"
-    IDS_RUNTOOLS_TOOL_NOT_CONFIGURED "工具 1 尚未配置。请在菜单“运行工具 → 配置运行工具”中设置。"
-    IDS_RUNTOOL_OUTPUT_TITLE   "运行工具输出"
-    IDS_RUNTOOL_EXITCODE_FMT   "命令已结束，退出码: %lu"
+    IDS_RUNTOOLS_ADD        "添加"
+    IDS_RUNTOOLS_DELETE     "删除"
+    IDS_RUNTOOLS_UP         "上移"
+    IDS_RUNTOOLS_DOWN       "下移"
+    IDS_RUNTOOLS_PRESET_CMD
+                        "运行 CMD.EXE"
+    IDS_RUNTOOLS_TOOL_NOT_CONFIGURED
+                        "工具 1 尚未配置。请在菜单“运行工具 → 配置运行工具”中设置。"
+    IDS_RUNTOOL_OUTPUT_TITLE
+                        "运行工具输出"
+    IDS_RUNTOOL_EXITCODE_FMT
+                        "命令已结束，退出码: %lu"
 END
 
 #endif    // 中文(简体，中国) resources

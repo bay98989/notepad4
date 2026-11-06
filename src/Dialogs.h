@@ -38,18 +38,23 @@ bool	GetDirectory(HWND hwndParent, int iTitle, LPWSTR pszFolder, LPCWSTR pszBase
 INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lParam) noexcept;
 void	RunDlg(HWND hwnd, LPCWSTR lpstrDefault) noexcept;
 
-//! 外部工具条数（与菜单 IDM_RUN_TOOL_1..10 对应）
-constexpr size_t RunToolSlotCount = 10;
+//! 工具栏固定运行工具按钮数（对应菜单 IDM_RUN_TOOL_1..10；自定义工具栏机制要求按钮编译期固定）
+constexpr size_t RunToolToolbarCount = 10;
+//! 运行工具总数上限（工具 11..32 走扩展命令段 IDM_RUN_TOOL_EXT_BASE..LAST，仅菜单可用）
+constexpr size_t RunToolMaxCount = 32;
 
 struct RunToolConfig {
 	WCHAR menuText[64];
 	WCHAR command[MAX_PATH];
 	WCHAR arguments[1024];
 	WCHAR workingDirectory[MAX_PATH];
+	WCHAR group[64];		// 运行工具菜单分组名，留空表示不分组
 	bool captureOutput;		// 捕获并显示子进程的控制台输出与退出码
 };
 
-bool	RunToolsConfigDlg(HWND hwnd, RunToolConfig *tools, size_t count) noexcept;
+//! tools/capacity 由调用方提供（数组容量须为 RunToolMaxCount）；*count 为当前工具数，
+//! 确定后回写为对话框内增删后的新数量
+bool	RunToolsConfigDlg(HWND hwnd, RunToolConfig *tools, size_t *count) noexcept;
 bool	GetRunToolPreview(const RunToolConfig &tool, LPWSTR commandLine, size_t commandLineCapacity, LPWSTR directory, size_t directoryCapacity) noexcept;
 bool	RunConfiguredTool(HWND hwnd, const RunToolConfig &tool) noexcept;
 

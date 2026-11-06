@@ -489,6 +489,7 @@ static void RunToolsGetCurrent(HWND hwnd, RunToolConfig &tool) noexcept {
 	GetDlgItemText(hwnd, IDC_RUNTOOLS_COMMAND, tool.command, COUNTOF(tool.command));
 	GetDlgItemText(hwnd, IDC_RUNTOOLS_ARGUMENTS, tool.arguments, COUNTOF(tool.arguments));
 	GetDlgItemText(hwnd, IDC_RUNTOOLS_DIRECTORY, tool.workingDirectory, COUNTOF(tool.workingDirectory));
+	GetDlgItemText(hwnd, IDC_RUNTOOLS_GROUP, tool.group, COUNTOF(tool.group));
 	tool.captureOutput = Button_GetCheck(GetDlgItem(hwnd, IDC_RUNTOOLS_CAPTURE)) != BST_UNCHECKED;
 }
 
@@ -497,14 +498,70 @@ static void RunToolsSetCurrent(HWND hwnd, const RunToolConfig &tool) noexcept {
 	SetDlgItemText(hwnd, IDC_RUNTOOLS_COMMAND, tool.command);
 	SetDlgItemText(hwnd, IDC_RUNTOOLS_ARGUMENTS, tool.arguments);
 	SetDlgItemText(hwnd, IDC_RUNTOOLS_DIRECTORY, tool.workingDirectory);
+	SetDlgItemText(hwnd, IDC_RUNTOOLS_GROUP, tool.group);
 	Button_SetCheck(GetDlgItem(hwnd, IDC_RUNTOOLS_CAPTURE), tool.captureOutput ? BST_CHECKED : BST_UNCHECKED);
 }
 
+// 列表框条目跟随菜单文本显示，菜单文本为空时回退到 Tool N（与主菜单一致）
+static void RunToolListLabel(const RunToolConfig &tool, size_t index, LPWSTR label, size_t labelCapacity) noexcept {
+	if (StrNotEmpty(tool.menuText)) {
+		lstrcpyn(label, tool.menuText, static_cast<int>(labelCapacity));
+	} else {
+		WCHAR fallbackFmt[32];
+		GetString(IDS_RUNTOOL_MENU_FALLBACK, fallbackFmt, COUNTOF(fallbackFmt));
+		wsprintf(label, fallbackFmt, static_cast<unsigned>(index) + 1);
+	}
+}
+
+// 列表框没有直接修改条目文本的消息，只能先删后插并恢复选中项；
+// 文本未变化时不动列表，避免重入 LBN_SELCHANGE 产生连锁反应
+static void RunToolsUpdateListItem(HWND hwnd, int index, const RunToolConfig &tool, size_t indexForLabel) noexcept {
+	HWND list = GetDlgItem(hwnd, IDC_RUNTOOLS_LIST);
+	if (index < 0 || ListBox_GetTextLen(list, index) == LB_ERR) {
+		return;
+	}
+	WCHAR label[COUNTOF(tool.menuText)];
+	RunToolListLabel(tool, indexForLabel, label, COUNTOF(label));
+	WCHAR old[COUNTOF(label)];
+	const int oldLen = ListBox_GetTextLen(list, index);
+	if (oldLen == static_cast<int>(lstrlen(label))
+		&& ListBox_GetText(list, index, old) != LB_ERR && lstrcmp(old, label) == 0) {
+		return;
+	}
+	ListBox_DeleteString(list, index);
+	ListBox_InsertString(list, index, label);
+	ListBox_SetCurSel(list, index);
+}
+
 struct RunToolsDialogState {
-	RunToolConfig *tools;
+	RunToolConfig *tools;	// 容量 RunToolMaxCount
+	size_t count;
 	int current;
 	HWND lastEdit;
+	size_t *countOut;		// 确定（IDOK）时回写新数量
 };
+
+static void RunToolsUpdateListButtons(HWND hwnd, const RunToolsDialogState &state) noexcept {
+	EnableWindow(GetDlgItem(hwnd, IDC_RUNTOOLS_ADD), state.count < RunToolMaxCount);
+	EnableWindow(GetDlgItem(hwnd, IDC_RUNTOOLS_DELETE), state.count > 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_RUNTOOLS_UP), state.current > 0);
+	EnableWindow(GetDlgItem(hwnd, IDC_RUNTOOLS_DOWN), state.current >= 0
+		&& static_cast<size_t>(state.current) + 1 < state.count);
+}
+
+static void RunToolsRebuildList(HWND hwnd, RunToolsDialogState &state) noexcept {
+	HWND list = GetDlgItem(hwnd, IDC_RUNTOOLS_LIST);
+	ListBox_ResetContent(list);
+	for (size_t i = 0; i < state.count; i++) {
+		WCHAR label[COUNTOF(state.tools[0].menuText)];
+		RunToolListLabel(state.tools[i], i, label, COUNTOF(label));
+		ListBox_AddString(list, label);
+	}
+	if (state.count > 0) {
+		ListBox_SetCurSel(list, state.current);
+	}
+	RunToolsUpdateListButtons(hwnd, state);
+}
 
 static void RunToolsUpdatePreview(HWND hwnd) noexcept {
 	RunToolConfig tool{};
@@ -538,16 +595,15 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 			{IDC_RUNTOOLS_COMMANDLINE_LABEL, IDS_RUNTOOLS_COMMANDLINE_LABEL},
 			{IDC_RUNTOOLS_DIRECTORY_LABEL, IDS_RUNTOOLS_DIRECTORY_LABEL},
 			{IDC_RUNTOOLS_TEST, IDS_RUNTOOLS_TEST},
+			{IDC_RUNTOOLS_ADD, IDS_RUNTOOLS_ADD},
+			{IDC_RUNTOOLS_DELETE, IDS_RUNTOOLS_DELETE},
+			{IDC_RUNTOOLS_UP, IDS_RUNTOOLS_UP},
+			{IDC_RUNTOOLS_DOWN, IDS_RUNTOOLS_DOWN},
 		};
 		WCHAR text[128];
 		for (const auto &label : labels) {
 			GetString(label.stringID, text, COUNTOF(text));
 			SetDlgItemText(hwnd, label.control, text);
-		}
-		for (int i = 0; i < 10; i++) {
-			WCHAR label[32];
-			wsprintf(label, L"Tool %d", i + 1);
-			ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_SLOT), label);
 		}
 		GetString(IDS_RUNTOOLS_PRESET_CUSTOM, text, COUNTOF(text));
 		ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_PRESET), text);
@@ -565,14 +621,20 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 			ComboBox_AddString(GetDlgItem(hwnd, IDC_RUNTOOLS_MACRO), macro);
 		}
 		ComboBox_SetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_MACRO), 0);
-		ComboBox_SetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_SLOT), 0);
-		state->current = 0;
+		state->current = (state->count > 0) ? 0 : -1;
 		state->lastEdit = GetDlgItem(hwnd, IDC_RUNTOOLS_COMMAND);
-		RunToolsSetCurrent(hwnd, state->tools[0]);
+		RunToolsRebuildList(hwnd, *state);
+		if (state->current >= 0) {
+			RunToolsSetCurrent(hwnd, state->tools[0]);
+		} else {
+			RunToolConfig empty{};
+			RunToolsSetCurrent(hwnd, empty);
+		}
 		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_NAME), COUNTOF(state->tools[0].menuText) - 1);
 		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_COMMAND), COUNTOF(state->tools[0].command) - 1);
 		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_ARGUMENTS), COUNTOF(state->tools[0].arguments) - 1);
 		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_DIRECTORY), COUNTOF(state->tools[0].workingDirectory) - 1);
+		Edit_LimitText(GetDlgItem(hwnd, IDC_RUNTOOLS_GROUP), COUNTOF(state->tools[0].group) - 1);
 		RunToolsUpdatePreview(hwnd);
 		DarkMode_InitDialog(hwnd);
 		return TRUE;
@@ -580,18 +642,21 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
-		case IDC_RUNTOOLS_SLOT:
-			if (HIWORD(wParam) == CBN_SELCHANGE && state != nullptr) {
-				RunToolsGetCurrent(hwnd, state->tools[state->current]);
-				const int current = static_cast<int>(ComboBox_GetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_SLOT)));
-				// ComboBox_GetCurSel 可能返回 CB_ERR(-1)，直接用会读到 tools[-1]
-				if (current >= 0 && current < static_cast<int>(RunToolSlotCount)) {
+		case IDC_RUNTOOLS_LIST:
+			if (HIWORD(wParam) == LBN_SELCHANGE && state != nullptr) {
+				if (state->current >= 0) {
+					RunToolsGetCurrent(hwnd, state->tools[state->current]);
+				}
+				const int current = static_cast<int>(ListBox_GetCurSel(GetDlgItem(hwnd, IDC_RUNTOOLS_LIST)));
+				// ListBox_GetCurSel 可能返回 LB_ERR(-1)，直接用会读到 tools[-1]
+				if (current >= 0 && static_cast<size_t>(current) < state->count) {
 					state->current = current;
 					RunToolsSetCurrent(hwnd, state->tools[current]);
 				}
 				state->lastEdit = GetDlgItem(hwnd, IDC_RUNTOOLS_COMMAND);
 				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
 				RunToolsUpdatePreview(hwnd);
+				RunToolsUpdateListButtons(hwnd, *state);
 			}
 			break;
 
@@ -625,11 +690,11 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 				lstrcpy(tool.workingDirectory, L"$(FileDir)");
 				RunToolsSetCurrent(hwnd, tool);
 				break;
-				}
-				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
-				RunToolsUpdatePreview(hwnd);
 			}
-			break;
+			SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
+			RunToolsUpdatePreview(hwnd);
+		}
+		break;
 
 		case IDC_RUNTOOLS_BROWSE_COMMAND: {
 			WCHAR command[MAX_PATH];
@@ -680,14 +745,88 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 				if (LOWORD(wParam) != IDC_RUNTOOLS_NAME) {
 					state->lastEdit = AsPointer<HWND>(lParam);
 				}
-			} else if (HIWORD(wParam) == EN_CHANGE) {
+		} else if (HIWORD(wParam) == EN_CHANGE) {
+			// 菜单文本变化时实时同步工具列表条目
+			if (LOWORD(wParam) == IDC_RUNTOOLS_NAME && state != nullptr && state->current >= 0) {
+				RunToolConfig tool{};
+				RunToolsGetCurrent(hwnd, tool);
+				RunToolsUpdateListItem(hwnd, state->current, tool, static_cast<size_t>(state->current));
+			}
+			SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
+			RunToolsUpdatePreview(hwnd);
+		}
+			break;
+
+		case IDC_RUNTOOLS_ADD:
+			if (state != nullptr && state->count < RunToolMaxCount) {
+				if (state->current >= 0) {
+					RunToolsGetCurrent(hwnd, state->tools[state->current]);
+				}
+				const int insertAt = (state->current >= 0) ? state->current + 1 : 0;
+				memmove(&state->tools[insertAt + 1], &state->tools[insertAt],
+						(state->count - static_cast<size_t>(insertAt)) * sizeof(RunToolConfig));
+				state->tools[insertAt] = RunToolConfig{};
+				state->count++;
+				state->current = insertAt;
+				RunToolsRebuildList(hwnd, *state);
+				RunToolsSetCurrent(hwnd, state->tools[insertAt]);
+				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
+				RunToolsUpdatePreview(hwnd);
+				SetFocus(GetDlgItem(hwnd, IDC_RUNTOOLS_NAME));
+			}
+			break;
+
+		case IDC_RUNTOOLS_DELETE:
+			if (state != nullptr && state->count > 0 && state->current >= 0) {
+				const size_t cur = static_cast<size_t>(state->current);
+				memmove(&state->tools[cur], &state->tools[cur + 1],
+						(state->count - cur - 1) * sizeof(RunToolConfig));
+				state->count--;
+				state->current = (state->count > 0)
+					? static_cast<int>((cur < state->count) ? cur : state->count - 1) : -1;
+				RunToolsRebuildList(hwnd, *state);
+				RunToolsSetCurrent(hwnd, (state->current >= 0) ? state->tools[state->current] : RunToolConfig{});
 				SetDlgItemText(hwnd, IDC_RUNTOOLS_STATUS, L"");
 				RunToolsUpdatePreview(hwnd);
 			}
 			break;
 
+		case IDC_RUNTOOLS_UP:
+			if (state != nullptr && state->current > 0) {
+				const int cur = state->current;
+				RunToolsGetCurrent(hwnd, state->tools[cur]);
+				const RunToolConfig tmp = state->tools[cur];
+				state->tools[cur] = state->tools[cur - 1];
+				state->tools[cur - 1] = tmp;
+				state->current = cur - 1;
+				RunToolsRebuildList(hwnd, *state);
+				RunToolsSetCurrent(hwnd, state->tools[cur - 1]);
+			}
+			break;
+
+		case IDC_RUNTOOLS_DOWN:
+			if (state != nullptr && state->current >= 0
+				&& static_cast<size_t>(state->current) + 1 < state->count) {
+				const int cur = state->current;
+				RunToolsGetCurrent(hwnd, state->tools[cur]);
+				const RunToolConfig tmp = state->tools[cur];
+				state->tools[cur] = state->tools[cur + 1];
+				state->tools[cur + 1] = tmp;
+				state->current = cur + 1;
+				RunToolsRebuildList(hwnd, *state);
+				RunToolsSetCurrent(hwnd, state->tools[cur + 1]);
+			}
+			break;
+
 		case IDOK: {
-			RunToolsGetCurrent(hwnd, state->tools[state->current]);
+			if (state != nullptr) {
+				if (state->current >= 0) {
+					RunToolsGetCurrent(hwnd, state->tools[state->current]);
+				}
+				if (state->countOut != nullptr) {
+					*state->countOut = state->count;
+				}
+			}
 			EndDialog(hwnd, IDOK);
 		} break;
 
@@ -700,13 +839,14 @@ static INT_PTR CALLBACK RunToolsConfigDlgProc(HWND hwnd, UINT umsg, WPARAM wPara
 	return FALSE;
 }
 
-bool RunToolsConfigDlg(HWND hwnd, RunToolConfig *tools, size_t count) noexcept {
-	if (count != RunToolSlotCount) {
+bool RunToolsConfigDlg(HWND hwnd, RunToolConfig *tools, size_t *count) noexcept {
+	if (tools == nullptr || count == nullptr || *count > RunToolMaxCount) {
 		return false;
 	}
-	RunToolConfig localTools[RunToolSlotCount];
-	memcpy(localTools, tools, sizeof(localTools));
-	RunToolsDialogState state{localTools, 0, nullptr};
+	RunToolConfig localTools[RunToolMaxCount];
+	memcpy(localTools, tools, *count * sizeof(RunToolConfig));
+	memset(localTools + *count, 0, (RunToolMaxCount - *count) * sizeof(RunToolConfig));
+	RunToolsDialogState state{localTools, *count, (*count > 0) ? 0 : -1, nullptr, count};
 	const INT_PTR result = ThemedDialogBoxParam(g_hInstance, MAKEINTRESOURCE(IDD_RUNTOOLS), hwnd, RunToolsConfigDlgProc, AsInteger<LPARAM>(&state));
 	if (result == IDOK) {
 		memcpy(tools, localTools, sizeof(localTools));

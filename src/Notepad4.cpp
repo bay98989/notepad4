@@ -161,6 +161,30 @@ static TBBUTTON tbbMainWnd[] =
 	{68, 	IDM_RUN_TOOL_8, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{69, 	IDM_RUN_TOOL_9, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 	{70, 	IDM_RUN_TOOL_10, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	// 运行工具 Tool 11..32：扩展段按钮（IDM_RUN_TOOL_EXT_BASE..LAST），仅工具栏使用，
+	// 默认不显示，可在“自定义工具栏”里添加；iBitmap 只是占位，CreateBars 会填入编号徽章槽位
+	{71, 	IDM_RUN_TOOL_EXT_BASE + 0, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{72, 	IDM_RUN_TOOL_EXT_BASE + 1, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{73, 	IDM_RUN_TOOL_EXT_BASE + 2, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{74, 	IDM_RUN_TOOL_EXT_BASE + 3, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{75, 	IDM_RUN_TOOL_EXT_BASE + 4, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{76, 	IDM_RUN_TOOL_EXT_BASE + 5, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{77, 	IDM_RUN_TOOL_EXT_BASE + 6, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{78, 	IDM_RUN_TOOL_EXT_BASE + 7, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{79, 	IDM_RUN_TOOL_EXT_BASE + 8, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{80, 	IDM_RUN_TOOL_EXT_BASE + 9, 	TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{81, 	IDM_RUN_TOOL_EXT_BASE + 10, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{82, 	IDM_RUN_TOOL_EXT_BASE + 11, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{83, 	IDM_RUN_TOOL_EXT_BASE + 12, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{84, 	IDM_RUN_TOOL_EXT_BASE + 13, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{85, 	IDM_RUN_TOOL_EXT_BASE + 14, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{86, 	IDM_RUN_TOOL_EXT_BASE + 15, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{87, 	IDM_RUN_TOOL_EXT_BASE + 16, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{88, 	IDM_RUN_TOOL_EXT_BASE + 17, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{89, 	IDM_RUN_TOOL_EXT_BASE + 18, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{90, 	IDM_RUN_TOOL_EXT_BASE + 19, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{91, 	IDM_RUN_TOOL_EXT_BASE + 20, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
+	{92, 	IDM_RUN_TOOL_EXT_BASE + 21, TBSTATE_ENABLED, TBSTYLE_BUTTON, {0}, 0, 0},
 };
 // NOLINTEND(readability-redundant-zero-initializer)
 
@@ -236,11 +260,11 @@ int		iPrintColor;
 int		iPrintZoom = 100;
 RECT	pageSetupMargin;
 static bool bSaveBeforeRunningTools;
-static constexpr size_t RunToolsCount = 10;
-static RunToolConfig runTools[RunToolsCount];
+static RunToolConfig runTools[RunToolMaxCount];
+static size_t runToolsCount = RunToolToolbarCount;	// 当前配置的工具数（INI [RunTools] Count，1..32）
 static HIMAGELIST g_himlToolbarImage;				// 正常图标列表
 static HIMAGELIST g_himlToolbarDisabled;			// 禁用图标列表（可能为 nullptr）
-static int g_runToolImageIndex[RunToolsCount];		// 编号徽章图标槽位，-1 = 未创建
+static int g_runToolImageIndex[RunToolMaxCount];	// 编号徽章图标槽位，-1 = 未创建（含扩展段 Tool 11..32）
 bool bOpenFolderWithMatepath;
 FileWatchingMode iFileWatchingMode;
 int iFileWatchingOption;
@@ -253,6 +277,8 @@ static EscFunction iEscFunction;
 static void LoadRunToolsSettings() noexcept;
 static bool SaveRunToolsSettings() noexcept;
 static void UpdateRunToolsMenu() noexcept;
+static size_t RunToolIndexFromCommand(WORD idCmd) noexcept;
+static UINT RunToolCommandFromIndex(size_t index) noexcept;
 static bool bAlwaysOnTop;
 static bool bMinimizeToTray;
 static TransparentMode bTransparentMode;
@@ -2258,20 +2284,20 @@ static HICON CreateRunToolBadgeIcon(int number, int size, bool disabled) noexcep
 	return RunToolIconFromDib(dib, size);
 }
 
-// 按当前配置刷新 10 个工具按钮的启用/禁用状态（按钮不在工具栏上时无副作用）
+// 按当前配置刷新全部工具按钮（Tool 1..32）的启用/禁用状态（按钮不在工具栏上时无副作用）
 static void Toolbar_UpdateRunToolStates() noexcept {
 	if (hwndToolbar == nullptr) {
 		return;
 	}
-	for (size_t i = 0; i < RunToolsCount; i++) {
-		const bool enabled = StrNotEmpty(runTools[i].command);
+	for (size_t i = 0; i < RunToolMaxCount; i++) {
+		const bool enabled = i < runToolsCount && StrNotEmpty(runTools[i].command);
 		// 只改启用位，保留按钮的其它状态（TB_SETSTATE 会把 TBSTATE_HIDDEN/WRAP 等一并清掉）
-		SendMessage(hwndToolbar, TB_ENABLEBUTTON, IDM_RUN_TOOL_1 + static_cast<WPARAM>(i),
+		SendMessage(hwndToolbar, TB_ENABLEBUTTON, RunToolCommandFromIndex(i),
 					MAKELPARAM(enabled ? 1 : 0, 0));
 	}
 }
 
-// 把 10 个编号徽章图标追加进正常/禁用两个图像列表，并把槽位写进按钮表
+// 把全部编号徽章图标（1..32）追加进正常/禁用两个图像列表，并把槽位写进按钮表
 static void Toolbar_PrepareRunToolIcons() noexcept {
 	if (g_himlToolbarImage == nullptr) {
 		return;
@@ -2283,7 +2309,7 @@ static void Toolbar_PrepareRunToolIcons() noexcept {
 		cy = 16;
 	}
 
-	for (size_t i = 0; i < RunToolsCount; i++) {
+	for (size_t i = 0; i < RunToolMaxCount; i++) {
 		if (g_runToolImageIndex[i] < 0) {
 			// 正常列表与禁用列表按同样顺序追加，保证两边槽位编号一致
 			const HICON hicon = CreateRunToolBadgeIcon(static_cast<int>(i) + 1, cy, false);
@@ -2303,7 +2329,7 @@ static void Toolbar_PrepareRunToolIcons() noexcept {
 
 		// 按钮表里的图标槽位（自定义工具栏、ToolbarButtons 配置串都从这里取）
 		for (size_t k = 1; k < COUNTOF(tbbMainWnd); k++) {
-			if (tbbMainWnd[k].idCommand == IDM_RUN_TOOL_1 + static_cast<int>(i)) {
+			if (tbbMainWnd[k].idCommand == RunToolCommandFromIndex(i)) {
 				tbbMainWnd[k].iBitmap = g_runToolImageIndex[i];
 				break;
 			}
@@ -3180,23 +3206,101 @@ static HMENU FindMenuContainingCommand(HMENU menu, UINT command) noexcept {
 	return nullptr;
 }
 
+// 运行工具命令 ID ↔ 索引映射：工具 1..10 走固定段（工具栏按钮沿用），
+// 工具 11..32 走扩展段 IDM_RUN_TOOL_EXT_BASE..LAST
+static UINT RunToolCommandFromIndex(size_t index) noexcept {
+	return (index < RunToolToolbarCount)
+		? static_cast<UINT>(IDM_RUN_TOOL_1 + index)
+		: static_cast<UINT>(IDM_RUN_TOOL_EXT_BASE + (index - RunToolToolbarCount));
+}
+
+static size_t RunToolIndexFromCommand(WORD idCmd) noexcept {
+	if (idCmd >= IDM_RUN_TOOL_1 && idCmd < IDM_RUN_TOOL_1 + RunToolToolbarCount) {
+		return static_cast<size_t>(idCmd - IDM_RUN_TOOL_1);
+	}
+	if (idCmd >= IDM_RUN_TOOL_EXT_BASE && idCmd <= IDM_RUN_TOOL_EXT_LAST) {
+		return RunToolToolbarCount + static_cast<size_t>(idCmd - IDM_RUN_TOOL_EXT_BASE);
+	}
+	return static_cast<size_t>(-1);
+}
+
 static void UpdateRunToolsMenu() noexcept {
 	HMENU menu = FindMenuContainingCommand(hmenuMain, IDM_RUN_TOOLS_CONFIG);
 	if (menu == nullptr) {
 		return;
 	}
+	// 工具项全部位于第一个分隔线之前：按 runToolsCount 重建，
+	// 分隔线与“配置运行工具...”项保持原样（标题来自菜单模板）
+	const int itemCount = GetMenuItemCount(menu);
+	int separatorPos = -1;
+	for (int pos = 0; pos < itemCount; pos++) {
+		if (GetMenuState(menu, pos, MF_BYPOSITION) & MF_SEPARATOR) {
+			separatorPos = pos;
+			break;
+		}
+	}
+	if (separatorPos < 0) {
+		return;	// 模板异常，避免误删“配置运行工具...”项
+	}
+	for (int pos = separatorPos - 1; pos >= 0; pos--) {
+		DeleteMenu(menu, pos, MF_BYPOSITION);
+	}
 	WCHAR fallbackFmt[32];
 	GetString(IDS_RUNTOOL_MENU_FALLBACK, fallbackFmt, COUNTOF(fallbackFmt));
-	for (size_t i = 0; i < RunToolsCount; i++) {
-		WCHAR fallback[32];
-		wsprintf(fallback, fallbackFmt, static_cast<unsigned>(i + 1));
+	// 组名相同的工具收进同一个弹出子菜单（按首次出现的顺序插入主菜单），
+	// 组名为空的工具保持平铺。组名指针指向 runTools 静态数组，菜单重建前稳定。
+	struct RunToolGroupEntry {
+		LPCWSTR name;
+		HMENU hmenu;
+		UINT itemCount;
+	};
+	RunToolGroupEntry groups[RunToolMaxCount];
+	size_t groupCount = 0;
+	UINT insertPos = 0;
+	for (size_t i = 0; i < runToolsCount; i++) {
+		WCHAR label[128];
+		if (StrNotEmpty(runTools[i].menuText)) {
+			lstrcpyn(label, runTools[i].menuText, COUNTOF(label));
+		} else {
+			wsprintf(label, fallbackFmt, static_cast<unsigned>(i) + 1);
+		}
 		MENUITEMINFO mii{};
 		mii.cbSize = sizeof(mii);
-		mii.fMask = MIIM_STRING | MIIM_STATE;
-		mii.dwTypeData = StrNotEmpty(runTools[i].menuText) ? runTools[i].menuText : fallback;
+		mii.fMask = MIIM_ID | MIIM_STRING | MIIM_STATE;
+		mii.wID = RunToolCommandFromIndex(i);
+		mii.dwTypeData = label;
 		// 只要配置了命令即可运行；菜单文本为空时显示 fallback 名称
 		mii.fState = StrNotEmpty(runTools[i].command) ? MFS_ENABLED : MFS_GRAYED;
-		SetMenuItemInfo(menu, IDM_RUN_TOOL_1 + static_cast<UINT>(i), FALSE, &mii);
+		if (StrIsEmpty(runTools[i].group)) {
+			InsertMenuItem(menu, insertPos++, TRUE, &mii);
+			continue;
+		}
+		int groupIndex = -1;
+		for (size_t g = 0; g < groupCount; g++) {
+			if (lstrcmp(groups[g].name, runTools[i].group) == 0) {
+				groupIndex = static_cast<int>(g);
+				break;
+			}
+		}
+		if (groupIndex < 0) {
+			HMENU groupMenu = CreatePopupMenu();
+			if (groupMenu == nullptr) {
+				continue;	// 子菜单创建失败时丢弃该工具（理论上不应发生）
+			}
+			MENUITEMINFO gmi{};
+			gmi.cbSize = sizeof(gmi);
+			gmi.fMask = MIIM_STRING | MIIM_SUBMENU | MIIM_STATE;
+			gmi.dwTypeData = const_cast<LPWSTR>(runTools[i].group);
+			gmi.hSubMenu = groupMenu;
+			gmi.fState = MFS_ENABLED;
+			InsertMenuItem(menu, insertPos++, TRUE, &gmi);
+			groups[groupCount].name = runTools[i].group;
+			groups[groupCount].hmenu = groupMenu;
+			groups[groupCount].itemCount = 0;
+			groupIndex = static_cast<int>(groupCount);
+			groupCount++;
+		}
+		InsertMenuItem(groups[groupIndex].hmenu, groups[groupIndex].itemCount++, TRUE, &mii);
 	}
 }
 
@@ -4032,6 +4136,16 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 		}
 	}
 
+	// 运行工具 1..32：固定段（工具栏按钮沿用）+ 扩展段（仅菜单）。
+	// 运行前保存由 RunConfiguredTool() 内部统一处理
+	{
+		const size_t toolIndex = RunToolIndexFromCommand(LOWORD(wParam));
+		if (toolIndex < runToolsCount) {
+			RunConfiguredTool(hwnd, runTools[toolIndex]);
+			return 0;
+		}
+	}
+
 	switch (LOWORD(wParam)) {
 	case IDT_FILE_NEW:
 	case IDM_FILE_NEW:
@@ -4174,7 +4288,7 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 
 	case IDT_FILE_LAUNCH:  ///工具栏上运行
 		{
-			if (StrIsEmpty(runTools[0].command)) {
+			if (runToolsCount == 0 || StrIsEmpty(runTools[0].command)) {
 				MsgBoxWarn(MB_OK, IDS_RUNTOOLS_TOOL_NOT_CONFIGURED);
 				break;
 			}
@@ -4226,7 +4340,7 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 	break;
 
 	case IDM_RUN_TOOLS_CONFIG:
-		if (RunToolsConfigDlg(hwnd, runTools, COUNTOF(runTools))) {
+		if (RunToolsConfigDlg(hwnd, runTools, &runToolsCount)) {
 			if (!SaveRunToolsSettings()) {
 				MsgBoxLastError(MB_OK, IDS_WRITEINI_FAIL);
 			}
@@ -4246,7 +4360,7 @@ LRESULT MsgCommand(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 	case IDM_RUN_TOOL_8:
 	case IDM_RUN_TOOL_9:
 	case IDM_RUN_TOOL_10:
-		RunConfiguredTool(hwnd, runTools[LOWORD(wParam) - IDM_RUN_TOOL_1]);
+		// 命令已在函数开头的运行工具命令段统一分发（1..32），不应到达这里
 		break;
 
 	case IDM_FILE_OPENWITH:
@@ -6389,13 +6503,16 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 			if (static_cast<UINT>(lpTbNotify->iItem) < COUNTOF(tbbMainWnd)) {
 				const int idCmd = tbbMainWnd[lpTbNotify->iItem].idCommand;
 				WCHAR tch[128];
-				if (idCmd >= IDM_RUN_TOOL_1 && idCmd <= IDM_RUN_TOOL_10) {
-					// 运行工具按钮：显示工具菜单文本，未设置则 Tool N
-					const size_t i = static_cast<size_t>(idCmd - IDM_RUN_TOOL_1);
-					if (StrNotEmpty(runTools[i].menuText)) {
+				if ((idCmd >= IDM_RUN_TOOL_1 && idCmd <= IDM_RUN_TOOL_10)
+						|| (idCmd >= IDM_RUN_TOOL_EXT_BASE && idCmd <= IDM_RUN_TOOL_EXT_LAST)) {
+					// 运行工具按钮：显示工具菜单文本，未设置或已删除则 Tool N
+					const size_t i = RunToolIndexFromCommand(static_cast<WORD>(idCmd));
+					if (i < runToolsCount && StrNotEmpty(runTools[i].menuText)) {
 						lstrcpyn(tch, runTools[i].menuText, COUNTOF(tch));
 					} else {
-						wsprintf(tch, L"Tool %u", static_cast<unsigned>(i) + 1);
+						WCHAR fallbackFmt[32];
+						GetString(IDS_RUNTOOL_MENU_FALLBACK, fallbackFmt, COUNTOF(fallbackFmt));
+						wsprintf(tch, fallbackFmt, static_cast<unsigned>(i) + 1);
 					}
 				} else {
 					GetString(idCmd, tch, COUNTOF(tch));
@@ -6517,13 +6634,16 @@ LRESULT MsgNotify(HWND hwnd, WPARAM wParam, LPARAM lParam) {
 			LPTOOLTIPTEXT pTTT = AsPointer<LPTOOLTIPTEXT>(lParam);
 			if (pTTT->uFlags & TTF_IDISHWND) {
 				//nop;
-			} else if (pnmh->idFrom >= IDM_RUN_TOOL_1 && pnmh->idFrom <= IDM_RUN_TOOL_10) {
-				// 运行工具按钮：显示工具菜单文本，未设置则显示 Tool N
-				const size_t i = static_cast<size_t>(pnmh->idFrom - IDM_RUN_TOOL_1);
-				if (StrNotEmpty(runTools[i].menuText)) {
+		} else if ((pnmh->idFrom >= IDM_RUN_TOOL_1 && pnmh->idFrom <= IDM_RUN_TOOL_10)
+				|| (pnmh->idFrom >= IDM_RUN_TOOL_EXT_BASE && pnmh->idFrom <= IDM_RUN_TOOL_EXT_LAST)) {
+			// 运行工具按钮：显示工具菜单文本，未设置或已删除则显示 Tool N
+			const size_t i = RunToolIndexFromCommand(static_cast<WORD>(pnmh->idFrom));
+			if (i < runToolsCount && StrNotEmpty(runTools[i].menuText)) {
 					lstrcpyn(pTTT->szText, runTools[i].menuText, COUNTOF(pTTT->szText));
 				} else {
-					wsprintf(pTTT->szText, L"Tool %u", static_cast<unsigned>(i) + 1);
+					WCHAR fallbackFmt[32];
+					GetString(IDS_RUNTOOL_MENU_FALLBACK, fallbackFmt, COUNTOF(fallbackFmt));
+					wsprintf(pTTT->szText, fallbackFmt, static_cast<unsigned>(i) + 1);
 				}
 			} else {
 				WCHAR tch[128];
@@ -6557,8 +6677,10 @@ static void GetWindowPositionSectionName(HMONITOR hMonitor, WCHAR (&sectionName)
 //
 //
 static void LoadRunToolsSettings() noexcept {
+	int count = IniGetInt(L"RunTools", L"Count", static_cast<int>(RunToolToolbarCount));
+	runToolsCount = clamp(static_cast<size_t>(max(count, 0)), static_cast<size_t>(0), RunToolMaxCount);
 	WCHAR key[32];
-	for (size_t i = 0; i < RunToolsCount; i++) {
+	for (size_t i = 0; i < runToolsCount; i++) {
 		wsprintf(key, L"Tool%uMenu", static_cast<unsigned>(i + 1));
 		IniGetString(L"RunTools", key, L"", runTools[i].menuText, COUNTOF(runTools[i].menuText));
 		wsprintf(key, L"Tool%uCommand", static_cast<unsigned>(i + 1));
@@ -6567,6 +6689,8 @@ static void LoadRunToolsSettings() noexcept {
 		IniGetString(L"RunTools", key, L"", runTools[i].arguments, COUNTOF(runTools[i].arguments));
 		wsprintf(key, L"Tool%uDirectory", static_cast<unsigned>(i + 1));
 		IniGetString(L"RunTools", key, L"", runTools[i].workingDirectory, COUNTOF(runTools[i].workingDirectory));
+		wsprintf(key, L"Tool%uGroup", static_cast<unsigned>(i + 1));
+		IniGetString(L"RunTools", key, L"", runTools[i].group, COUNTOF(runTools[i].group));
 		wsprintf(key, L"Tool%uCapture", static_cast<unsigned>(i + 1));
 		runTools[i].captureOutput = IniGetInt(L"RunTools", key, 0) != 0;
 	}
@@ -6594,7 +6718,8 @@ static bool IniSetStringKeepQuotes(LPCWSTR lpSection, LPCWSTR lpName, LPCWSTR lp
 static bool SaveRunToolsSettings() noexcept {
 	WCHAR key[32];
 	bool success = true;
-	for (size_t i = 0; i < RunToolsCount; i++) {
+	IniSetInt(L"RunTools", L"Count", static_cast<int>(runToolsCount));
+	for (size_t i = 0; i < runToolsCount; i++) {
 		wsprintf(key, L"Tool%uMenu", static_cast<unsigned>(i + 1));
 		success = IniSetStringKeepQuotes(L"RunTools", key, runTools[i].menuText) && success;
 		wsprintf(key, L"Tool%uCommand", static_cast<unsigned>(i + 1));
@@ -6603,8 +6728,25 @@ static bool SaveRunToolsSettings() noexcept {
 		success = IniSetStringKeepQuotes(L"RunTools", key, runTools[i].arguments) && success;
 		wsprintf(key, L"Tool%uDirectory", static_cast<unsigned>(i + 1));
 		success = IniSetStringKeepQuotes(L"RunTools", key, runTools[i].workingDirectory) && success;
+		wsprintf(key, L"Tool%uGroup", static_cast<unsigned>(i + 1));
+		success = IniSetStringKeepQuotes(L"RunTools", key, runTools[i].group) && success;
 		wsprintf(key, L"Tool%uCapture", static_cast<unsigned>(i + 1));
 		IniSetBool(L"RunTools", key, runTools[i].captureOutput);
+	}
+	// 清除因删除工具而遗留的多余键（历史上最多写到 32）
+	for (size_t i = runToolsCount; i < RunToolMaxCount; i++) {
+		wsprintf(key, L"Tool%uMenu", static_cast<unsigned>(i + 1));
+		IniSetString(L"RunTools", key, L"");
+		wsprintf(key, L"Tool%uCommand", static_cast<unsigned>(i + 1));
+		IniSetString(L"RunTools", key, L"");
+		wsprintf(key, L"Tool%uArguments", static_cast<unsigned>(i + 1));
+		IniSetString(L"RunTools", key, L"");
+		wsprintf(key, L"Tool%uDirectory", static_cast<unsigned>(i + 1));
+		IniSetString(L"RunTools", key, L"");
+		wsprintf(key, L"Tool%uGroup", static_cast<unsigned>(i + 1));
+		IniSetString(L"RunTools", key, L"");
+		wsprintf(key, L"Tool%uCapture", static_cast<unsigned>(i + 1));
+		IniSetString(L"RunTools", key, L"");
 	}
 	return success;
 }
